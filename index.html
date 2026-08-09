@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATRaction :: Atari 8-bit ATR Disk Manager</title>
+    <meta name="description"
+        content="Kompleksowa i nowoczesna aplikacja SPA do manipulacji obrazami dyskietek Atari 8-bit (.ATR).">
+    <!-- Favicons (atari.org.pl) -->
+    <link rel="shortcut icon" href="img/favicon.ico?v=20260726">
+    <link rel="icon" type="image/gif" href="img/aafav.gif?v=20260726">
+    <link rel="apple-touch-icon" sizes="57x57" href="img/favicon_57x57.png?v=20260726">
+    <link rel="apple-touch-icon" sizes="72x72" href="img/favicon_72x72.png?v=20260726">
+    <link rel="apple-touch-icon" sizes="114x114" href="img/favicon_114x114.png?v=20260726">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css?v=20260726_7">
+</head>
+
+<body>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="brand">
+            <div class="brand-icon">ATRaction</div>
+            <div class="brand-title">
+                <h1>Atari 8-bit Disk Manager</h1>
+            </div>
+        </div>
+        <div id="activeDiskContainer" class="active-disk-pill" data-i18n-title title="Brak otwartego obrazu ATR">
+            <svg class="active-disk-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path>
+                <path d="M6 6h12"></path>
+                <path d="M8 12h8"></path>
+                <path d="M8 16h5"></path>
+            </svg>
+            <span class="active-disk-label" data-i18n>DYSK:</span>
+            <span id="currentDiskBadge" class="active-disk-name empty" data-i18n>Brak Obrazu</span>
+        </div>
+        <div class="header-actions">
+            <button id="btnNewDisk" class="btn btn-secondary" data-i18n-title title="Utwórz nowy obraz ATR">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span data-i18n>Nowy ATR</span>
+            </button>
+            <button id="btnOpenDisk" class="btn btn-primary" data-i18n-title title="Otwórz plik .ATR z dysku">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span data-i18n>Otwórz ATR</span>
+            </button>
+            <button id="btnSaveDisk" class="btn btn-success" disabled data-i18n-title title="Eksportuj/Pobierz zmodyfikowany plik ATR">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span data-i18n>Zapisz ATR</span>
+            </button>
+            <button id="btnFormatDisk" class="btn btn-secondary" disabled data-i18n-title title="Sformatuj dysk">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span data-i18n>Formatuj</span>
+            </button>
+            <button id="btnManual" class="btn btn-secondary" data-i18n-title title="Instrukcja obsługi i podręcznik użytkownika">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                <span data-i18n>Instrukcja</span>
+            </button>
+            <button id="btnLangToggle" class="btn btn-secondary" title="Switch interface language / Przełącz język interfejsu">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                </svg>
+                <span id="btnLangToggleLabel">EN</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="app-container" id="dropZone">
+        <!-- Sidebar -->
+        <aside class="app-sidebar">
+            <!-- Disk Info Card -->
+            <div class="disk-info-card">
+                <div class="disk-info-header">
+                    <h3 data-i18n>Parametry Dysku</h3>
+                    <span id="dosBadge" class="badge badge-green">Atari DOS</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label" data-i18n>Gęstość:</span>
+                    <span id="metricDensity" class="metric-value">SD (90K)</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label" data-i18n>Sektory ogółem:</span>
+                    <span id="metricSectors" class="metric-value">720</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label" data-i18n>Wolne sektory:</span>
+                    <span id="metricFreeSectors" class="metric-value">707</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label" data-i18n>Wolne miejsce:</span>
+                    <span id="metricFreeBytes" class="metric-value">88,375 B</span>
+                </div>
+                <div class="progress-bar-bg" data-i18n-title title="Zajętość dysku">
+                    <div id="diskProgressFill" class="progress-bar-fill" style="width: 2%;"></div>
+                </div>
+                <div id="diskWarningNotice" class="disk-warning-notice"
+                    style="display: none; margin-top: 10px; padding: 8px 10px; font-size: 11px; color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; line-height: 1.4; text-align: left;">
+                    <div style="font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span id="diskWarningTitle" data-i18n>Niestandardowy rozmiar / parametry</span>
+                    </div>
+                    <div id="diskWarningText" data-i18n>Odczytano niestandardowy rozmiar dysku. Modyfikowanie plików może doprowadzić do uszkodzenia danych.</div>
+                </div>
+                <div id="diskReadOnlyNotice" class="disk-warning-notice"
+                    style="display: none; margin-top: 10px; padding: 8px 10px; font-size: 11px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; line-height: 1.4; text-align: left;">
+                    <div style="font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span id="diskReadOnlyTitle" data-i18n>Tylko do odczytu (Read-Only)</span>
+                    </div>
+                    <div id="diskReadOnlyText" data-i18n>Błędna bitmapa alokacji. Obraz zamontowano w trybie tylko do odczytu.</div>
+                </div>
+            </div>
+
+            <!-- Directory Tree -->
+            <div id="dirTreeCard" class="tree-container">
+                <span class="tree-title" data-i18n>Struktura Katalogów</span>
+                <ul id="dirTree" class="tree-view">
+                    <li class="tree-item active" data-path="">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        <span>[ROOT]</span>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="app-main">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button id="btnAddFile" class="btn btn-secondary btn-sm" disabled data-i18n-title title="Dodaj plik z komputera">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span data-i18n>Dodaj Plik</span>
+                    </button>
+                    <button id="btnCreateDir" class="btn btn-secondary btn-sm" disabled data-i18n-title
+                        title="Utwórz nowy podkatalog (MyDOS / SpartaDOS)">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                        </svg>
+                        <span data-i18n>Nowy Katalog</span>
+                    </button>
+                    <button id="btnExtractFile" class="btn btn-secondary btn-sm" disabled data-i18n-title
+                        title="Eksportuj wybrany plik">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span data-i18n>Pobierz Plik</span>
+                    </button>
+                    <button id="btnRenameFile" class="btn btn-secondary btn-sm" disabled data-i18n-title title="Zmień nazwę pliku">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 012.828 0L20 7.828a2 2 0 010 2.828L11.828 19H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span data-i18n>Zmień Nazwę</span>
+                    </button>
+                    <button id="btnToggleLock" class="btn btn-secondary btn-sm" disabled data-i18n-title
+                        title="Zablokuj / Odblokuj plik">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span data-i18n>Zablokuj/Odblokuj</span>
+                    </button>
+                    <button id="btnEditAttributes" class="btn btn-secondary btn-sm" disabled style="display: none;"
+                        data-i18n-title title="Ustaw atrybuty (A, H, P) w SpartaDOS / SDFS">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                        <span data-i18n>Atrybuty</span>
+                    </button>
+                    <button id="btnDeleteFile" class="btn btn-secondary btn-sm" disabled data-i18n-title title="Usuń plik z obrazu">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span data-i18n>Usuń</span>
+                    </button>
+                    <button id="btnPreviewFile" class="btn btn-secondary btn-sm" disabled data-i18n-title
+                        title="Podgląd ATASCII / Podgląd Hex">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span data-i18n>Podgląd / Hex</span>
+                    </button>
+                    <button id="btnDirAtascii" class="btn btn-secondary btn-sm" disabled data-i18n-title
+                        title="Wyświetl katalog w trybie ATASCII">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                        <span data-i18n>Katalog ATASCII</span>
+                    </button>
+                </div>
+                <div class="toolbar-search">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" id="searchInput" data-i18n-placeholder placeholder="Szukaj pliku...">
+                </div>
+            </div>
+
+            <!-- File Table -->
+            <div class="file-table-container">
+                <table class="file-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n>Nazwa Pliku</th>
+                            <th data-i18n>Sektory</th>
+                            <th data-i18n>Rozmiar (B)</th>
+                            <th data-i18n>Sektor Start</th>
+                            <th data-i18n>Atrybuty</th>
+                            <th data-i18n>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileTableBody">
+                        <!-- Dynamic file list -->
+                    </tbody>
+                </table>
+                <div id="emptyState" class="empty-state">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    </svg>
+                    <p data-i18n>Brak wczytanego obrazu ATR lub katalog jest pusty.</p>
+                    <p style="font-size: 12px; color: var(--text-muted);" data-i18n-html>Przeciągnij i upuść plik .ATR tutaj lub
+                        kliknij "Otwórz ATR".</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Drop Overlay -->
+        <div id="dropOverlay" class="drop-overlay">
+            <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 0115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <h2 data-i18n>Upuść plik ATR lub plik do importu</h2>
+        </div>
+    </div>
+
+    <!-- App Footer -->
+    <footer class="app-footer">
+        <div id="statusLeft" data-i18n>Gotowy.</div>
+        <div id="statusRight" data-i18n-html>ATRaction :: dely / blowjobb / ng :: apka powstała z udziałem LLM. :: <a href="LICENSE.txt" target="_blank" rel="noopener" style="color: var(--color-primary);">GPL-2.0-or-later</a></div>
+    </footer>
+
+    <!-- Modal: New Disk -->
+    <div id="modalNewDisk" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n>Tworzenie Nowego Obrazu ATR</h2>
+                <button class="modal-close" data-close="modalNewDisk">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newDiskDOS" data-i18n>System Plików / DOS:</label>
+                    <select id="newDiskDOS" class="form-control">
+                        <option value="DOS2" data-i18n>Atari DOS 2.0S (SD)</option>
+                        <option value="DOS25" data-i18n>Atari DOS 2.5 (SD / MD)</option>
+                        <option value="DOS2PLUS" selected data-i18n>DOS II+/D (SD / MD / DD)</option>
+                        <option value="MyDOS" data-i18n>MyDOS 4.5x (SD / MD / DD / QD)</option>
+                        <option value="SpartaDOS" data-i18n>Sparta DOS (SD / MD / DD / QD)</option>
+                        <option value="CPM" data-i18n>CP/M 2.2 (Indus GT - DD 180 KB)</option>
+                        <option value="NONE" id="optFsNone" data-i18n>Brak (dysk niesformatowany)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="newDiskDensity" data-i18n>Gęstość i Rozmiar Dysku:</label>
+                    <select id="newDiskDensity" class="form-control">
+                        <option value="SD" id="optSD" selected data-i18n>SD - SS/SD (90 KB / 720 Sektorów 128B)</option>
+                        <option value="MD" id="optMD" data-i18n>MD - SS/MD (130 KB / 1040 Sektorów 128B)</option>
+                        <option value="DD" id="optDD" data-i18n>DD - SS/DD (180 KB / 720 Sektorów 256B)</option>
+                        <option value="QD" id="optQD" style="display: none;" data-i18n>QD - DS/DD (368 KB / 1440 Sektorów 256B)
+                        </option>
+                        <option value="DSDD" id="optDSDD" style="display: none;" data-i18n>720 KB - DS/QD (720 KB / 2880 Sektorów
+                            256B)</option>
+                        <option value="CUSTOM" id="optCUSTOM" data-i18n>Niestandardowy (własna geometria)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="customGeometryGroup" style="display: none;">
+                    <label data-i18n>Geometria niestandardowa:</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="flex: 1 1 140px;">
+                            <label for="newDiskSectorCount"
+                                style="font-weight: normal; font-size: 0.9em;" data-i18n>Liczba sektorów:</label>
+                            <input type="number" id="newDiskSectorCount" class="form-control" value="720" min="1"
+                                max="65535" step="1">
+                        </div>
+                        <div style="flex: 1 1 140px;">
+                            <label for="newDiskBootSectors"
+                                style="font-weight: normal; font-size: 0.9em;" data-i18n>Sektory startowe:</label>
+                            <input type="number" id="newDiskBootSectors" class="form-control" value="3" min="0"
+                                max="255" step="1">
+                        </div>
+                        <div style="flex: 1 1 140px;">
+                            <label for="newDiskSectorSize"
+                                style="font-weight: normal; font-size: 0.9em;" data-i18n>Rozmiar sektora:</label>
+                            <select id="newDiskSectorSize" class="form-control">
+                                <option value="128" selected data-i18n>128 bajtów</option>
+                                <option value="256" data-i18n>256 bajtów</option>
+                                <option value="512" data-i18n>512 bajtów</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="customGeometryInfo"
+                        style="margin-top: 8px; font-size: 0.85em; line-height: 1.45; opacity: 0.85;"></div>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="chkInstallSystem" checked>
+                        <span data-i18n>Zainstaluj pliki systemowe DOS (Boot & DOS.SYS / DUP.SYS)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modalNewDisk" data-i18n>Anuluj</button>
+                <button id="btnCreateDiskConfirm" class="btn btn-primary" data-i18n>Utwórz Dysk</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: File Preview / Hex Viewer -->
+    <div id="modalPreview" class="modal-backdrop">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 id="previewTitle" data-i18n>Podgląd Pliku</h2>
+                <button class="modal-close" data-close="modalPreview">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-tabs" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 2px;">
+                        <div id="tabText" class="preview-tab active" data-i18n>Tekst</div>
+                        <div id="tabHex" class="preview-tab" data-i18n>Hex</div>
+                    </div>
+                    <button id="btnToggleAtariFont" class="btn btn-secondary btn-sm" style="margin-bottom: 4px;"
+                        data-i18n-title title="Przełącz podgląd na font PC lub ATASCII">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 5h12M9 5v14m0 0H7m2 0h2m4-4h6m-3-3v6m0 0h-2m2 0h2" />
+                        </svg>
+                        <span id="btnToggleAtariFontLabel" data-i18n>Font: PC</span>
+                    </button>
+                </div>
+                <div id="previewTextContent" class="preview-content"></div>
+                <div id="previewHexContent" class="preview-content" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modalPreview" data-i18n>Zamknij</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Rename File -->
+    <div id="modalRename" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n>Zmiana Nazwy Pliku</h2>
+                <button class="modal-close" data-close="modalRename">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="renameInput" data-i18n>Nowa nazwa (Standard 8.3 ATASCII):</label>
+                    <input type="text" id="renameInput" class="form-control" placeholder="NAZWA.EXT" data-i18n-placeholder>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modalRename" data-i18n>Anuluj</button>
+                <button id="btnRenameConfirm" class="btn btn-primary" data-i18n>Zapisz Zmianę</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create Directory -->
+    <div id="modalCreateDir" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n>Nowy Podkatalog</h2>
+                <button class="modal-close" data-close="modalCreateDir">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="createDirInput" data-i18n>Nazwa podkatalogu (8.3 ATASCII):</label>
+                    <input type="text" id="createDirInput" class="form-control" placeholder="SUBDIR" maxlength="12">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modalCreateDir" data-i18n>Anuluj</button>
+                <button id="btnCreateDirConfirm" class="btn btn-primary" data-i18n>Utwórz Katalog</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Attributes (SpartaDOS SDFS) -->
+    <div id="modalAttributes" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n>Atrybuty Pliku (SpartaDOS / SDFS)</h2>
+                <button class="modal-close" data-close="modalAttributes">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="attrFileNameLabel" style="font-weight: 700; color: var(--color-primary);"></p>
+                <div class="form-group" style="gap: 12px; margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="chkAttrProtect"
+                            style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+                        <span data-i18n-html><strong>(P) Protected / Locked</strong> – Ochrona przed modyfikacją i skasowaniem (Bit
+                            0)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="chkAttrHidden"
+                            style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+                        <span data-i18n-html><strong>(H) Hidden</strong> – Ukryty plik w katalogu (Bit 1)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="chkAttrArchive"
+                            style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+                        <span data-i18n-html><strong>(A) Archive</strong> – Flaga archiwum / zmiany (Bit 2)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modalAttributes" data-i18n>Anuluj</button>
+                <button id="btnSaveAttributesConfirm" class="btn btn-primary" data-i18n>Zapisz Atrybuty</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: ATASCII Directory Art View -->
+    <div id="modalDirAtascii" class="modal-backdrop">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 data-i18n>Podgląd Katalogu (ATASCII)</h2>
+                <button class="modal-close" data-close="modalDirAtascii">&times;</button>
+            </div>
+            <div class="modal-body" style="background-color: #153382; padding: 16px; min-height: 380px;">
+                <div id="dirAtasciiFormatted" class="preview-content use-atari-font"
+                    style="display: block; background-color: #153382; color: #ffffff; font-size: 14px; line-height: 1.0; padding: 12px; border-radius: 4px; border: 1px solid #2851a3; white-space: pre; overflow-x: auto; font-family: 'Atari', monospace !important;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modalDirAtascii" data-i18n>Zamknij</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Modal -->
+    <div id="modalManual" class="modal-backdrop">
+        <div class="modal modal-xl">
+            <div class="modal-header">
+                <h2 data-i18n>Instrukcja Obsługi ATRaction</h2>
+                <button class="modal-close" data-close="modalManual">&times;</button>
+            </div>
+            <div class="modal-body" style="gap: 20px; font-size: 13px; color: var(--text-primary); line-height: 1.6;">
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>1. Wstęp i Przegląd Aplikacji</h3>
+                    <p style="margin-bottom: 8px;" data-i18n-html><strong>ATRaction</strong> to zaawansowana aplikacja internetowa (Single Page Application) przeznaczona do tworzenia, odczytu, modyfikacji oraz analizy obrazów dyskietek elastycznych (formaty <code>.ATR</code> i <code>.XFD</code>) dla 8-bitowych komputerów Atari (seria 400/800, XL, XE). Całe przetwarzanie odbywa się lokalnie w przeglądarce za pomocą buforów binarnych <code>Uint8Array</code>, gwarantując prywatność i natychmiastowe działanie.</p>
+                    <ul style="padding-left: 20px; margin: 0;">
+                        <li data-i18n-html><strong>Obsługiwane systemy plików:</strong> Atari DOS 2.0S/2.0D, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), LiteDOS-SE oraz CP/M 2.2 (Indus GT).</li>
+                        <li data-i18n-html><strong>Gęstości i formaty:</strong> SD (90 KB), MD/ED (130 KB), DD (180 KB), QD (368 KB), DS/QD (720 KB), <strong>geometria niestandardowa</strong> (dowolna liczba sektorów, sektory 128/256/512 B) oraz surowe obrazy <strong>XFD</strong>.</li>
+                        <li data-i18n-html><strong>Zarządzanie plikami:</strong> Dodawanie, usuwanie, zmiana nazwy (ATASCII 8.3 / CP/M), blokowanie (Lock/Unlock), atrybuty SDFS (A/H/P) oraz eksport na PC. Drag &amp; Drop plików <code>.ATR</code> oraz <code>.XFD</code>.</li>
+                        <li data-i18n-html><strong>Podkatalogi:</strong> Tworzenie i szybka nawigacja po drzewie podkatalogów (MyDOS, SpartaDOS).</li>
+                        <li data-i18n-html><strong>Tryb Read-Only:</strong> Automatyczna walidacja alokacji chroniąca uszkodzone obrazy przed nadpisaniem.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>2. Obsługiwane Systemy Plików</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12px;">
+                        <thead>
+                            <tr style="background-color: var(--bg-surface); border-bottom: 2px solid var(--border-color); text-align: left;">
+                                <th style="padding: 6px 8px;" data-i18n>System</th>
+                                <th style="padding: 6px 8px;" data-i18n>Dopuszczalna geometria</th>
+                                <th style="padding: 6px 8px;" data-i18n>Podkatalogi</th>
+                                <th style="padding: 6px 8px;" data-i18n>Nowy dysk</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>Atari DOS 2.0S</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>wyłącznie 720&times;128 (SD)</td>
+                                <td style="padding: 6px 8px;" data-i18n>nie</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>Atari DOS 2.5</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>wyłącznie 720&times;128 (SD) lub 1040&times;128 (MD)</td>
+                                <td style="padding: 6px 8px;" data-i18n>nie</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>DOS II+/D</strong></td>
+                                <td style="padding: 6px 8px;">720&times;128, 720&times;256, 1040&times;128</td>
+                                <td style="padding: 6px 8px;" data-i18n>nie</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>MyDOS 4.5x</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>od 720 sektorów, 128 lub 256 B</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak (64 pozycje / katalog)</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>SpartaDOS (SDFS)</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n-html>od 16 sektorów, 128 / 256 / <strong>512 B</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>tak (bez limitu pozycji)</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>LiteDOS-SE</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>dyski z klastrami 1&ndash;64 sektorów</td>
+                                <td style="padding: 6px 8px;" data-i18n>nie</td>
+                                <td style="padding: 6px 8px;" data-i18n>nie &ndash; tylko odczyt, zapis i formatowanie istniejących</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 8px;"><strong>CP/M 2.2 (Indus GT)</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>64&ndash;1068 sektorów, wyłącznie 256 B</td>
+                                <td style="padding: 6px 8px;" data-i18n>nie</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin: 0 0 8px 0;" data-i18n-html><strong>Atari DOS 2.0S</strong> był dystrybuowany wyłącznie na dyskietkach SD, a <strong>DOS 2.5</strong> dodatkowo na MD (1040 sektorów, 130 KB) &ndash; nigdy na DD, QD ani 720K. Okno tworzenia dysku wymusza te ograniczenia, ukrywając niedostępne gęstości w rozwijanej liście. Sektory startowe oraz pliki <code>DOS.SYS</code>/<code>DUP.SYS</code> instalowane przy tworzeniu nowego dysku są bajt w bajt identyczne z oryginalnymi obrazami Atari DOS &ndash; dla DOS 2.5 wariant MD ma inny plik <code>DOS.SYS</code> niż wariant SD (różnica w osadzonej tabeli geometrii dysku), dlatego aplikacja instaluje odpowiedni zestaw zależnie od wybranej gęstości.</p>
+                    <p style="margin: 0 0 8px 0;" data-i18n-html><strong>LiteDOS-SE</strong> rozpoznawany jest w dwóch odmianach: klasycznej (bity 7&ndash;6 bajtu ID sektora 360 równe <code>01</code>, bitmapa od offsetu <code>$0A</code>) oraz nowszej 2.x (bity <code>10</code>, sygnatura tekstowa <code>LiteDOS(c)MrA</code>, bitmapa 512-bitowa od <code>$20</code>). Miejsce zajmowane przez samo jądro DOS-u &ndash; w LiteDOS nie ma pliku DOS.SYS &ndash; jest rozpoznawane jako obszar systemowy i nie jest zgłaszane jako zagubione sektory.</p>
+                    <p style="margin: 0;" data-i18n-html><strong>CP/M 2.2</strong> dla stacji Indus GT przechowuje wszystkie bajty w postaci zanegowanej (XOR <code>$FF</code>). Katalog (64 pozycje) zajmuje sektory 37&ndash;44, dane są przydzielane blokami po 1 KB. Format zapisuje jedynie liczbę 128-bajtowych rekordów, więc odczytany rozmiar pliku jest zaokrąglany w górę do wielokrotności 128 bajtów.</p>
+                </section>
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>3. Geometrie Dysków</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12px;">
+                        <thead>
+                            <tr style="background-color: var(--bg-surface); border-bottom: 2px solid var(--border-color); text-align: left;">
+                                <th style="padding: 6px 8px;" data-i18n>Symbol</th>
+                                <th style="padding: 6px 8px;" data-i18n>Nazwa Gęstości</th>
+                                <th style="padding: 6px 8px;" data-i18n>Sektory</th>
+                                <th style="padding: 6px 8px;" data-i18n>Rozmiar Sektora</th>
+                                <th style="padding: 6px 8px;" data-i18n>Pojemność</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>SD</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>Single Density</td>
+                                <td style="padding: 6px 8px;">720</td>
+                                <td style="padding: 6px 8px;">128 B</td>
+                                <td style="padding: 6px 8px;">90 KB</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>MD / ED</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>Medium / Enhanced Density</td>
+                                <td style="padding: 6px 8px;">1040</td>
+                                <td style="padding: 6px 8px;">128 B</td>
+                                <td style="padding: 6px 8px;">130 KB</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>DD</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>Double Density (Atari DOS / CP/M)</td>
+                                <td style="padding: 6px 8px;">720</td>
+                                <td style="padding: 6px 8px;">256 B</td>
+                                <td style="padding: 6px 8px;">180 KB</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>QD</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>Quad Density</td>
+                                <td style="padding: 6px 8px;">1440</td>
+                                <td style="padding: 6px 8px;">256 B</td>
+                                <td style="padding: 6px 8px;">368 KB</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 6px 8px;"><strong>720K</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>Double Sided / Quad Density</td>
+                                <td style="padding: 6px 8px;">2880</td>
+                                <td style="padding: 6px 8px;">256 B</td>
+                                <td style="padding: 6px 8px;">720 KB</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 8px;"><strong>Niestandardowy</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>Własna geometria</td>
+                                <td style="padding: 6px 8px;">1&ndash;65535</td>
+                                <td style="padding: 6px 8px;">128 / 256 / 512 B</td>
+                                <td style="padding: 6px 8px;" data-i18n>do 32 MB</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;" data-i18n-html>
+                        <strong>Format Surowy XFD:</strong> Obrazy <code>.XFD</code> to surowe zrzuty sektorów bez 16-bajtowego nagłówka ATR, w których wszystkie sektory mają jednakowy rozmiar. W kontenerze <code>.ATR</code> obowiązuje odwrotna konwencja: przy sektorach większych niż 128 B kilka pierwszych (startowych) zapisywanych jest jako 128-bajtowe.
+                    </div>
+
+                    <div style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 10px 12px;" data-i18n-html>
+                        <strong>Sektory startowe:</strong> Nagłówek ATR nie ma pola na ich liczbę &ndash; przyjmuje się, że obrazy o sektorach do 256 B mają trzy 128-bajtowe sektory startowe. Ustawienie innej wartości w geometrii niestandardowej wpływa na tworzony plik, ale przy ponownym wczytaniu obrazu o sektorach 256 B zostaną odczytane 3. Przy sektorach 128 B pole nie zmienia układu pliku w ogóle, przy 512 B krótkich sektorów startowych nie ma wcale.
+                    </div>
+                </section>
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>4. Instrukcje Krok po Kroku (Tutoriale)</h3>
+
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px;" data-i18n>Tworzenie Nowego Obrazu ATR / XFD</h4>
+                        <ol style="padding-left: 20px; margin: 0;">
+                            <li data-i18n-html>Kliknij przycisk <strong>Nowy Dysk</strong> na górnym pasku nawigacyjnym.</li>
+                            <li data-i18n-html>Wybierz system plików (<em>Atari DOS 2.0S</em>, <em>Atari DOS 2.5</em>, <em>DOS II+/D</em>, <em>MyDOS 4.5x</em>, <em>SpartaDOS</em>, <em>CP/M 2.2</em> lub <em>Brak &ndash; dysk niesformatowany</em>).</li>
+                            <li data-i18n-html>Wskaż gęstość dysku. Lista dostosowuje się do wybranego systemu &ndash; np. <em>Atari DOS 2.0S</em> oferuje wyłącznie SD, <em>Atari DOS 2.5</em> wyłącznie SD i MD, a DOS II+/D nie oferuje QD ani 720 KB.</li>
+                            <li data-i18n-html>Zaznacz opcję instalacji plików systemowych DOS (dostępna dla obu wersji Atari DOS i dla MyDOS) i zatwierdź przyciskiem <strong>Utwórz Dysk</strong>.</li>
+                        </ol>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px;" data-i18n>Geometria Niestandardowa</h4>
+                        <p style="margin: 0 0 4px 0;" data-i18n-html>Wybranie gęstości <strong>Niestandardowy</strong> odsłania trzy pola:</p>
+                        <ol style="padding-left: 20px; margin: 0;">
+                            <li data-i18n-html><strong>Liczba sektorów</strong> &ndash; od liczby sektorów startowych do 65535.</li>
+                            <li data-i18n-html><strong>Sektory startowe</strong> &ndash; 0&ndash;255. Pole jest wyłączane po wybraniu sektorów 512-bajtowych, które krótkich sektorów startowych nie mają.</li>
+                            <li data-i18n-html><strong>Rozmiar sektora</strong> &ndash; 128, 256 lub 512 bajtów. Sektory 512 B obsługuje wyłącznie SpartaDOS.</li>
+                        </ol>
+                        <p style="margin: 4px 0 0 0;" data-i18n-html>Pod polami wyświetlany jest wynikowy rozmiar obrazu. Jeśli wybrany system plików nie obsługuje podanej geometrii, pojawia się czerwony komunikat z przyczyną, a przycisk <strong>Utwórz Dysk</strong> zostaje zablokowany &ndash; dopuszczalne kombinacje zebrano w tabeli w punkcie 2.</p>
+                        <div style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 8px 10px; margin-top: 6px;" data-i18n-html>
+                            <strong>Uwaga:</strong> dla geometrii niestandardowej instalacja plików systemowych jest <strong>zawsze wyłączona</strong>. Gotowe pliki DOS.SYS i DUP.SYS istnieją wyłącznie w wariantach dla gęstości standardowych i na dysku o innej geometrii nie byłyby poprawnie ładowane.
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px;" data-i18n>Wgrywanie, Modyfikacja i Usuwanie Plików</h4>
+                        <ol style="padding-left: 20px; margin: 0;">
+                            <li data-i18n-html><strong>Dodawanie pliku z PC:</strong> Kliknij <strong>Dodaj Plik</strong> i wybierz plik z dysku komputera (np. <code>.XEX</code>, <code>.COM</code>, <code>.TXT</code>). Nazwa zostanie automatycznie przekonwertowana do standardu 8.3 ATASCII.</li>
+                            <li data-i18n-html><strong>Zablokowanie pliku:</strong> Zaznacz plik na liście i kliknij <strong>Zablokuj/Odblokuj</strong>. Plik zyska status zablokowanego przed skasowaniem.</li>
+                            <li data-i18n-html><strong>Atrybuty SpartaDOS:</strong> Dla dysków SDFS przycisk <strong>Edytuj Atrybuty</strong> pozwala ustawić znaczniki <em>P</em> (Protected), <em>H</em> (Hidden) i <em>A</em> (Archive). Aktywne atrybuty widoczne są jako plakietki na liście plików.</li>
+                            <li data-i18n-html><strong>Zmiana nazwy:</strong> Wybierz plik, kliknij <strong>Zmień Nazwę</strong> i podaj nową nazwę zgodną z formatem 8.3.</li>
+                            <li data-i18n-html><strong>Usuwanie:</strong> Zaznacz plik lub pusty podkatalog i kliknij <strong>Usuń</strong>.</li>
+                            <li data-i18n-html><strong>Eksport:</strong> Przycisk <strong>Wypakuj</strong> zapisuje zaznaczony plik na dysk komputera, a <strong>Zapisz Dysk</strong> pobiera cały zmodyfikowany obraz.</li>
+                        </ol>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px;" data-i18n>Praca z Podkatalogami (MyDOS / SpartaDOS)</h4>
+                        <ol style="padding-left: 20px; margin: 0;">
+                            <li data-i18n-html>Na dyskach sformatowanych w MyDOS lub SpartaDOS kliknij <strong>Nowy Katalog</strong> i podaj nazwę.</li>
+                            <li data-i18n-html>Aby wejść do katalogu, kliknij dwukrotnie na wiersz w tabeli lub skorzystaj z <strong>Drzewa Katalogów</strong> w panelu bocznym.</li>
+                            <li data-i18n-html>Powrót do katalogu głównego następuje po kliknięciu <code>[ROOT]</code> w drzewie katalogów.</li>
+                        </ol>
+                    </div>
+
+                    <div>
+                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px;" data-i18n>Podgląd Tekstowy, Hex Viewer oraz ATASCII</h4>
+                        <ol style="padding-left: 20px; margin: 0;">
+                            <li data-i18n-html>Wybranie pliku i kliknięcie <strong>Podgląd / Hex</strong> otwiera okno podglądu z zakładkami <em>Tekst</em> oraz <em>Hex</em>.</li>
+                            <li data-i18n-html>Przycisk fontu pozwala na przełączenie widoku między domyślnym krojem PC a oryginalnym fontem Atari 8-Bit (glify ATASCII, symbole graficzne i znaki ramek).</li>
+                            <li data-i18n-html>Przycisk <strong>Katalog ATASCII</strong> prezentuje całą zawartość katalogu w 40-kolumnowym formacie ekranu Atari.</li>
+                        </ol>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>5. Walidacja Alokacji i Tryb Read-Only</h3>
+                    <p style="margin-bottom: 8px;" data-i18n>Po wczytaniu obrazu aplikacja przechodzi całe drzewo katalogów i porównuje sektory zajmowane przez pliki z mapą alokacji dysku. Reakcja zależy od rodzaju niezgodności &ndash;:</p>
+                    <ul style="padding-left: 20px; margin: 0 0 8px 0;">
+                        <li data-i18n-html><strong>Tryb tylko do odczytu</strong> &ndash; gdy sektor używany przez plik jest w mapie oznaczony jako wolny, gdy licznik wolnych sektorów nie zgadza się z mapą, gdy ten sam sektor należy do dwóch plików albo gdy wpis katalogu wskazuje poza obszar dysku. Pliki można przeglądać i pobierać, ale wszystkie operacje zapisu są zablokowane, żeby nie pogłębić uszkodzenia.</li>
+                        <li data-i18n-html><strong>Ostrzeżenie</strong> &ndash; gdy w mapie są tylko <em>zagubione sektory</em>, czyli oznaczone jako zajęte, choć żaden plik ich nie używa. Taki obraz pozostaje zapisywalny; marnuje jedynie miejsce.</li>
+                    </ul>
+                    <p style="margin: 0;" data-i18n>Każdy system plików sprawdzany jest według własnych reguł: MyDOS i Atari DOS przez bitmapę VTOC w sektorze 360 (z rozszerzeniami dla dysków powyżej 943 sektorów i drugą mapą DOS 2.5 w sektorze 1024), SpartaDOS przez mapę bitową i licznik w bloku startowym, LiteDOS przez mapę klastrów, a CP/M przez kontrolę bloków przydzielonych w katalogu. Komunikat z przyczyną pojawia się na pasku statusu i w panelu informacji o dysku.</p>
+                </section>
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>6. Kodowanie Znaków ATASCII vs PC (UTF-8)</h3>
+                    <p style="margin: 0;" data-i18n-html>Komputery Atari 8-bit stosują własny standard kodowania <strong>ATASCII</strong>. Znak końca linii (EOL) to kod <code>0x9B</code> (155), który ATRaction automatycznie konwertuje na znak <code>\n</code>. Bajty o wartościach <code>0x80</code>–<code>0xFF</code> odpowiadają znakom inwertowanym (Inverse Video), natomiast kody <code>0x00</code>–<code>0x1F</code> oraz <code>0x60</code>–<code>0x7F</code> reprezentują specjalne glify graficzne Atari.</p>
+                </section>
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>7. Podziękowania (Credits)</h3>
+                    <p style="margin-bottom: 8px;" data-i18n-html>Aplikacja <strong>ATRaction</strong> powstała przy wsparciu wiedzy i zasobów udostępnionych przez:</p>
+                    <ul style="padding-left: 20px; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+                        <li>
+                            <span data-i18n-html><strong>Mono</strong> &ndash; projekt <strong>atari8fs</strong></span>
+                            (<a href="http://mono.i-demo.pl/" target="_blank" rel="noopener" style="color: var(--color-primary);">http://mono.i-demo.pl/</a>)<br>
+                            <span style="color: var(--text-secondary);" data-i18n>Implementacje systemów plików Atari DOS 2, DOS 2.5, DOS II+/D i MyDOS 4.5x czerpią z analizy formatów ATR i VTOC udokumentowanej w projekcie atari8fs.</span>
+                        </li>
+                        <li>
+                            <span data-i18n-html><strong>Avery Lee</strong> &ndash; emulator <strong>Altirra</strong></span>
+                            (<a href="https://www.virtualdub.org/altirra.html" target="_blank" rel="noopener" style="color: var(--color-primary);">https://www.virtualdub.org/altirra.html</a>)<br>
+                            <span style="color: var(--text-secondary);" data-i18n-html>Kod źródłowy biblioteki ATIO posłużył jako wzorzec przy odtworzeniu rozszerzonego VTOC MyDOS, mapy bitowej SDFS, systemu CP/M 2.2 dla Indus GT, drugiej mapy alokacji DOS 2.5, zasad rozpoznawania formatów oraz mechanizmu walidacji z trybem Read-Only. Okno tworzenia dysku o geometrii niestandardowej odwzorowuje opcję <em>Custom</em> z altirrowego <em>Create New Disk</em>.</span>
+                        </li>
+                        <li>
+                            <span data-i18n-html><strong>Mr Atari</strong> &ndash; system <strong>LiteDOS-SE</strong></span>
+                            (<a href="http://www.mr-atari.com/" target="_blank" rel="noopener" style="color: var(--color-primary);">http://www.mr-atari.com/</a>)<br>
+                            <span style="color: var(--text-secondary);" data-i18n>Obsługa LiteDOS &ndash; klastrowa mapa alokacji, geometria obszaru VTOC i katalogu oraz format wpisów &ndash; opiera się na sekcji technicznej instrukcji użytkownika LiteDOS-SE.</span>
+                        </li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>8. Licencja</h3>
+                    <p style="margin-bottom: 8px;" data-i18n-html>ATRaction jest wolnym oprogramowaniem na licencji <strong>GNU General Public License w wersji 2 lub dowolnej późniejszej</strong> (<a href="LICENSE.txt" target="_blank" rel="noopener" style="color: var(--color-primary);">GPL-2.0-or-later</a>). Program rozpowszechniany jest w nadziei, że okaże się przydatny, ale <em>bez jakiejkolwiek gwarancji</em>.</p>
+                    <p style="margin-bottom: 8px;" data-i18n-html>Wybór licencji nie jest przypadkowy. Część kodu obsługującego formaty dysków &ndash; rozszerzony VTOC MyDOS, mapa bitowa SDFS, system CP/M 2.2 dla Indus GT, druga mapa alokacji DOS 2.5, zasady rozpoznawania formatów oraz mechanizm walidacji z trybem tylko do odczytu &ndash; powstała na podstawie źródeł biblioteki <strong>ATIO</strong> emulatora <strong>Altirra</strong> (&copy; 2009&ndash;2015 Avery Lee), objętych tą samą licencją. Same formaty dysków są faktami technicznymi i nie podlegają prawu autorskiemu, ale odtworzenie ich z otwartym cudzym kodem czyni ten fragment utworem zależnym, dlatego ATRaction dziedziczy GPL.</p>
+                    <p style="margin: 0;" data-i18n-html><strong>Wyjątek:</strong> plik <code>js/dos_templates.js</code> zawiera dosłowne kopie sektorów startowych oraz plików <code>DOS.SYS</code> i <code>DUP.SYS</code> systemów Atari DOS 2.0S, DOS 2.5, DOS II+/D, MyDOS 4.5x i LiteDOS-SE. Nie są one dziełem tego projektu, nie są objęte GPL i nie są tu do nich udzielane żadne prawa &ndash; każdy pozostaje własnością swojego podmiotu praw. Pełne zestawienie zapożyczeń znajduje się w pliku <a href="THIRD-PARTY.txt" target="_blank" rel="noopener" style="color: var(--color-primary);">THIRD-PARTY.txt</a>.</p>
+                </section>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" data-close="modalManual" data-i18n>Zamknij</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Import Result / Errors -->
+    <div id="modalImportResult" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="importResultTitle" data-i18n>Wynik Importu Plików</h2>
+                <button class="modal-close" data-close="modalImportResult">&times;</button>
+            </div>
+            <div class="modal-body" style="gap: 14px; font-size: 13px;">
+                <div id="importResultSummary" class="disk-warning-notice" style="display: block;"></div>
+
+                <div id="importSuccessContainer" style="display: none;">
+                    <h4 style="font-size: 13px; font-weight: 700; color: var(--color-success); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span data-i18n>Pomyślnie zaimportowane pliki:</span>
+                    </h4>
+                    <ul id="importSuccessList" class="import-file-list success"></ul>
+                </div>
+
+                <div id="importFailureContainer" style="display: none;">
+                    <h4 style="font-size: 13px; font-weight: 700; color: var(--color-danger); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span data-i18n>Pliki, które nie mogły zostać dodane:</span>
+                    </h4>
+                    <ul id="importFailureList" class="import-file-list failure"></ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" data-close="modalImportResult" data-i18n>Zamknij</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden File Inputs -->
+    <input type="file" id="fileInputATR" accept=".atr,.ATR,.xfd,.XFD" style="display: none;">
+    <input type="file" id="fileInputImport" multiple style="display: none;">
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- JavaScript Modules -->
+    <script src="js/i18n.js?v=20260807"></script>
+    <script src="js/atascii.js?v=20260726_3"></script>
+    <script src="js/atr.js?v=20260726_3"></script>
+    <script src="js/dos2.js?v=20260727"></script>
+    <script src="js/litedos.js?v=20260727"></script>
+    <script src="js/mydos.js?v=20260727"></script>
+    <script src="js/spartados.js?v=20260727"></script>
+    <script src="js/cpm.js?v=20260726_1"></script>
+    <script src="js/dos_templates.js?v=20260727_3"></script>
+    <script src="js/engine.js?v=20260804"></script>
+    <script src="js/app.js?v=20260804"></script>
+</body>
+
+</html>

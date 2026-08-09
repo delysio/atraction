@@ -1,0 +1,30 @@
+# Whitelist approach: ignore everything, then re-admit only what the repo
+# should carry. A new working directory dropped into the project therefore
+# stays out by default instead of being published by accident.
+/*
+!/.gitignore
+!/.gitattributes
+!/index.html
+!/README.md
+!/LICENSE.txt
+!/THIRD-PARTY.txt
+!/css/
+!/img/
+!/js/
+
+# Deliberately excluded, and why:
+#   _altirra/      full Altirra source (29 MB), kept locally as reference only
+#   _disks/        69 MB of test images, including commercial games
+#   documentation/ third-party PDF manuals (LiteDOS, MyDOS, SpartaDOS X)
+#   _doc/          source of README.md, kept local to avoid two copies
+#   _tests/        Node test harness; needs _disks/ to run
+#   _temp/         scratch space
+#   app.md         private project notes
+#   .agents/ .claude/ .vscode/  local tooling configuration
+
+# Editor and OS noise, in case any of the published directories collect it.
+*.swp
+*~
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,127 @@
+                    THIRD-PARTY WORK IN ATRaction
+
+ATRaction is licensed GPL-2.0-or-later (see LICENSE.txt). That choice is not
+arbitrary: parts of the disk-format code are derived from GPL-licensed sources,
+and this document records exactly which, so that anyone reading or reusing the
+code knows what came from where.
+
+
+1. ALTIRRA / THE ATIO LIBRARY - AVERY LEE
+-----------------------------------------
+
+    Project:    https://www.virtualdub.org/altirra.html
+    Copyright:  (C) 2009-2015 Avery Lee
+    Licence:    GPL-2.0-or-later - every ATIO source file carries the notice
+                "either version 2 of the License, or (at your option) any
+                later version".
+
+This is the reason ATRaction is GPL. The Atari disk formats themselves are
+facts, not protected expression, but the following was reconstructed with
+Altirra's source open as the reference, which makes it derived work:
+
+  js/atr.js
+      Custom disk geometry rules mirroring the "Custom" option of Altirra's
+      Create New Disk dialog: boot sector count, sector size, and the
+      resulting free sector count.
+
+  js/dos2.js
+      The DOS 2.5 second allocation map (VTOC2 in sector 1024), the
+      reserved-sector rules, and the allocation validator, following
+      ATDiskFSDOS2::Validate and ATDiskFSDOS2::InitNew.
+
+  js/mydos.js
+      The paged, multi-sector MyDOS VTOC bitmap model, verified against
+      ATDiskFSDOS2::InitNew.
+
+  js/spartados.js
+      The SDFS allocation bitmap layout, and the sector-size code convention
+      of boot sector byte 31 (128 -> 128 B, 0 -> 256 B, 1 -> 512 B).
+
+  js/cpm.js
+      The CP/M 2.2 (Indus GT) filesystem layout and its inverted (XOR $FF)
+      byte encoding.
+
+  js/engine.js
+      The filesystem detection order and the read-only validation mechanism;
+      checkFormatSupport() follows IsCurrentFormatSupported().
+
+  _tests/validate_altirra.js
+      A direct port of ATDiskFSDOS2::Validate, used to cross-check that the
+      images ATRaction accepts are images Altirra also accepts. Not part of
+      the published site.
+
+The read-only mounting model as a whole - refusing writes when the allocation
+map contradicts the directory, rather than silently repairing - follows
+Altirra's approach and is applied across every filesystem module, including
+those not listed above.
+
+Altirra's own source is NOT redistributed with ATRaction.
+
+
+2. atari8fs - MONO
+------------------
+
+    Project:    http://mono.i-demo.pl/
+
+The Atari DOS 2, DOS 2.5, DOS II+/D and MyDOS 4.5x implementations draw on the
+analysis of the ATR and VTOC formats documented by this project. This is format
+documentation rather than code reuse.
+
+
+3. LiteDOS-SE - MR ATARI
+------------------------
+
+    Project:    http://www.mr-atari.com/
+
+js/litedos.js - the cluster allocation map, the VTOC/directory area geometry
+and the directory entry format follow the technical section of the LiteDOS-SE
+user manual. Written from documentation, not from source.
+
+
+4. EMBEDDED DOS SYSTEM FILES - js/dos_templates.js
+--------------------------------------------------
+
+THIS FILE IS THE ONE EXCEPTION TO THE LICENCE. It carries verbatim copies of
+third-party boot sectors and system files (DOS.SYS, DUP.SYS) as base64 blobs,
+used to install a working DOS when creating a new disk image. They are not the
+work of this project, are not covered by the GPL, and no licence over them is
+claimed or granted here. Only the surrounding JavaScript - the table structure
+and the decoder - is GPL.
+
+  DOS2       Atari DOS 2.0S
+             (C) Atari Inc.; rights now held by Atari Interactive.
+             Included for retro-computing use.
+
+  DOS25      Atari DOS 2.5
+             As above.
+
+  DOS2PLUS   DOS II+/D
+             Third-party derivative of Atari DOS 2.
+
+  MYDOS      MyDOS 4.5x
+             Charles Marslett / Robert Puff - released to the Atari community
+             as freely distributable.
+
+  LITEDOS    LiteDOS-SE
+             Mr Atari.
+
+These binaries are included on the same footing as they circulate throughout
+the Atari 8-bit preservation community: as a hobbyist archive of software for
+hardware discontinued in 1992. If you are a rights holder and want a template
+removed, please get in touch and it will be removed.
+
+Anyone redistributing ATRaction should be aware that the GPL covers the source
+code, NOT these templates, and that their status differs per entry - MyDOS and
+LiteDOS are freely distributable, while the Atari DOS images are tolerated
+rather than licensed.
+
+
+5. BUNDLED FONT - css/AtariClassic.ttf
+--------------------------------------
+
+A recreation of the Atari 8-bit system character set, shipped with the app so
+that the ATASCII preview and the directory view can render text the way the
+original hardware did. It is not the work of this project and is not covered by
+the GPL; it is redistributed here in the form in which it circulates in the
+Atari community.
+

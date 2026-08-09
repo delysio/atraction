@@ -1,0 +1,16 @@
+# Normalise text to LF inside the repository, whatever the checkout platform
+# does locally. Without this, a checkout on Windows and one on Linux produce
+# diffs in which every line of every file looks changed.
+* text=auto
+
+*.html  text
+*.css   text
+*.js    text
+*.md    text
+*.txt   text
+
+# Assets must never be line-ending converted.
+*.ttf   binary
+*.gif   binary
+*.ico   binary
+*.png   binary
