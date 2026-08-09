@@ -2,9 +2,11 @@
  * ATRaction - Atari 8-bit ATR/XFD disk image manager
  * Copyright (C) 2026 dely / blowjobb / ng
  *
- * Contains work derived from the ATIO library of the Altirra emulator,
- * Copyright (C) 2009-2015 Avery Lee, licensed GPL-2.0-or-later. Derived here:
- *   the SDFS allocation bitmap layout and the sector-size code convention
+ * Contains work derived from the Altirra emulator by Avery Lee, licensed
+ * GPL-2.0-or-later:
+ *   ATIO/source/diskfssdx2.cpp  Copyright (C) 2009-2015 Avery Lee
+ *
+ * Derived here: the SDFS allocation bitmap layout and the sector-size code convention
  *   of boot byte 31 (128 -> 128 B, 0 -> 256 B, 1 -> 512 B).
  *
  * SPDX-License-Identifier: GPL-2.0-or-later

@@ -2,9 +2,11 @@
  * ATRaction - Atari 8-bit ATR/XFD disk image manager
  * Copyright (C) 2026 dely / blowjobb / ng
  *
- * Contains work derived from the ATIO library of the Altirra emulator,
- * Copyright (C) 2009-2015 Avery Lee, licensed GPL-2.0-or-later. Derived here:
- *   the CP/M 2.2 (Indus GT) filesystem layout and its inverted byte encoding.
+ * Contains work derived from the Altirra emulator by Avery Lee, licensed
+ * GPL-2.0-or-later:
+ *   ATIO/source/diskfscpm.cpp  Copyright (C) 2009-2021 Avery Lee
+ *
+ * Derived here: the CP/M 2.2 (Indus GT) filesystem layout and its inverted byte encoding.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *

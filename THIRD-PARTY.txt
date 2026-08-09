@@ -10,42 +10,56 @@ code knows what came from where.
 -----------------------------------------
 
     Project:    https://www.virtualdub.org/altirra.html
-    Copyright:  (C) 2009-2015 Avery Lee
-    Licence:    GPL-2.0-or-later - every ATIO source file carries the notice
+    Author:     Avery Lee
+    Licence:    GPL-2.0-or-later - every Altirra source file carries the notice
                 "either version 2 of the License, or (at your option) any
                 later version".
+
+Altirra carries a separate copyright range per source file, so each module
+below names the file it draws on together with that file's own range, rather
+than one blanket range for everything.
 
 This is the reason ATRaction is GPL. The Atari disk formats themselves are
 facts, not protected expression, but the following was reconstructed with
 Altirra's source open as the reference, which makes it derived work:
 
   js/atr.js
-      Custom disk geometry rules mirroring the "Custom" option of Altirra's
-      Create New Disk dialog: boot sector count, sector size, and the
-      resulting free sector count.
+      from Altirra/source/uidisk.cpp        (C) 2009-2010 Avery Lee
+      Custom disk geometry rules mirroring the "Custom" option of the Create
+      New Disk dialog: boot sector count, sector size, and the resulting free
+      sector count.
 
   js/dos2.js
+      from ATIO/source/diskfsdos2.cpp       (C) 2009-2015 Avery Lee
       The DOS 2.5 second allocation map (VTOC2 in sector 1024), the
       reserved-sector rules, and the allocation validator, following
       ATDiskFSDOS2::Validate and ATDiskFSDOS2::InitNew.
 
   js/mydos.js
+      from ATIO/source/diskfsdos2.cpp       (C) 2009-2015 Avery Lee
       The paged, multi-sector MyDOS VTOC bitmap model, verified against
       ATDiskFSDOS2::InitNew.
 
   js/spartados.js
+      from ATIO/source/diskfssdx2.cpp       (C) 2009-2015 Avery Lee
       The SDFS allocation bitmap layout, and the sector-size code convention
       of boot sector byte 31 (128 -> 128 B, 0 -> 256 B, 1 -> 512 B).
 
   js/cpm.js
+      from ATIO/source/diskfscpm.cpp        (C) 2009-2021 Avery Lee
       The CP/M 2.2 (Indus GT) filesystem layout and its inverted (XOR $FF)
       byte encoding.
 
   js/engine.js
-      The filesystem detection order and the read-only validation mechanism;
-      checkFormatSupport() follows IsCurrentFormatSupported().
+      from ATIO/source/diskfs.cpp           (C) 2009-2014 Avery Lee
+      from ATIO/source/diskimage.cpp        (C) 2008-2025 Avery Lee
+      from Altirra/source/uidisk.cpp        (C) 2009-2010 Avery Lee
+      The filesystem detection order and its boot signatures
+      (ATDiskMountImage), the read-only validation mechanism, and
+      checkFormatSupport(), which follows IsCurrentFormatSupported().
 
   _tests/validate_altirra.js
+      from ATIO/source/diskfsdos2.cpp       (C) 2009-2015 Avery Lee
       A direct port of ATDiskFSDOS2::Validate, used to cross-check that the
       images ATRaction accepts are images Altirra also accepts. Not part of
       the published site.

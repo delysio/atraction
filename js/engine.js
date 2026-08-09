@@ -2,10 +2,15 @@
  * ATRaction - Atari 8-bit ATR/XFD disk image manager
  * Copyright (C) 2026 dely / blowjobb / ng
  *
- * Contains work derived from the ATIO library of the Altirra emulator,
- * Copyright (C) 2009-2015 Avery Lee, licensed GPL-2.0-or-later. Derived here:
- *   the filesystem detection order and the read-only validation mechanism;
- *   checkFormatSupport() follows IsCurrentFormatSupported().
+ * Contains work derived from the Altirra emulator by Avery Lee, licensed
+ * GPL-2.0-or-later:
+ *   ATIO/source/diskfs.cpp     Copyright (C) 2009-2014 Avery Lee
+ *   ATIO/source/diskimage.cpp  Copyright (C) 2008-2025 Avery Lee
+ *   Altirra/source/uidisk.cpp  Copyright (C) 2009-2010 Avery Lee
+ *
+ * Derived here: the filesystem detection order and its boot signatures
+ *   (ATDiskMountImage), the read-only validation mechanism, and
+ *   checkFormatSupport(), which follows IsCurrentFormatSupported().
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *

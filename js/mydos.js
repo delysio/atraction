@@ -2,9 +2,11 @@
  * ATRaction - Atari 8-bit ATR/XFD disk image manager
  * Copyright (C) 2026 dely / blowjobb / ng
  *
- * Contains work derived from the ATIO library of the Altirra emulator,
- * Copyright (C) 2009-2015 Avery Lee, licensed GPL-2.0-or-later. Derived here:
- *   the paged, multi-sector MyDOS VTOC bitmap model, verified against
+ * Contains work derived from the Altirra emulator by Avery Lee, licensed
+ * GPL-2.0-or-later:
+ *   ATIO/source/diskfsdos2.cpp  Copyright (C) 2009-2015 Avery Lee
+ *
+ * Derived here: the paged, multi-sector MyDOS VTOC bitmap model, verified against
  *   ATDiskFSDOS2::InitNew.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
