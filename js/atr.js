@@ -85,11 +85,48 @@ class ATRImage {
         this.headerSectorSize = this.data[4] | (this.data[5] << 8);
         this.writeProtected = (this.data[8] & 0x01) !== 0;
 
-        // ATR has no field for the boot sector count, images with sectors up to
-        // 256 bytes keep three 128-byte boot sectors, larger ones have none.
+        // ATR has no field for the boot sector count, so two counts have to be
+        // told apart:
+        //   bootSectorCount       how many sectors the Atari sees as 128 bytes,
+        //   imageBootSectorCount  how many are physically stored that way.
+        // They normally agree, but a double density image may store its three
+        // boot sectors in full 256-byte slots instead. Assuming the short layout
+        // for such a file shifts every sector from #4 on by 384 bytes, which puts
+        // the VTOC out of reach and makes the files unreadable.
+        //
+        // The two layouts are told apart by the paragraph count, as Altirra does
+        // it: a paragraph is 16 bytes and a 256-byte sector is exactly 16 of
+        // them, so a whole number of full-size sectors always lands on a multiple
+        // of 16, while the 3x128-byte boot prefix adds 24 paragraphs and leaves a
+        // remainder of 8.
         if (this.bootSectorCount === undefined) {
             this.bootSectorCount = (this.headerSectorSize <= 256) ? 3 : 0;
+            this.imageBootSectorCount = this.bootSectorCount;
+            this.packedBootSectors = false;
+
+            if (this.headerSectorSize === 256) {
+                const lowParagraphs = this.data[2] | (this.data[3] << 8);
+                if ((lowParagraphs & 0x0F) === 0) {
+                    this.imageBootSectorCount = 0;
+
+                    // Rarer still: the three boot sectors written back to back in
+                    // the first 384 bytes, the rest of the third slot padded out.
+                    // Recognised, like Altirra does, by the second 128-byte slot
+                    // holding data while the fifth is empty.
+                    const isSlotEmpty = (slot) => {
+                        const base = 16 + slot * 128;
+                        for (let i = 0; i < 128; i++) {
+                            if (this.data[base + i]) return false;
+                        }
+                        return true;
+                    };
+                    if (this.data.length >= 16 + 5 * 128 && !isSlotEmpty(1) && isSlotEmpty(4)) {
+                        this.packedBootSectors = true;
+                    }
+                }
+            }
         }
+        if (this.imageBootSectorCount === undefined) this.imageBootSectorCount = this.bootSectorCount;
 
         // Determine total sectors and density
         this.calculateGeometry();
@@ -156,10 +193,23 @@ class ATRImage {
     }
 
     /**
-     * Number of leading sectors physically stored as 128 bytes
+     * Number of leading sectors physically stored as 128 bytes. Drives every
+     * byte offset in the image, so it is the count actually present in the file
+     * - zero on a double density image whose boot sectors occupy full slots.
      * @returns {number}
      */
     shortBootSectors() {
+        if (this.isXFD || this.sectorSize <= 128) return 0;
+        return this.imageBootSectorCount || 0;
+    }
+
+    /**
+     * Number of leading sectors the Atari addresses as 128 bytes, whatever the
+     * file does with them. Drives the sector *size* rather than its offset: on
+     * the full-slot layout only the first half of each boot slot is real data.
+     * @returns {number}
+     */
+    logicalBootSectors() {
         if (this.isXFD || this.sectorSize <= 128) return 0;
         return this.bootSectorCount || 0;
     }
@@ -176,6 +226,10 @@ class ATRImage {
 
         if (this.isXFD) return 16 + (sector - 1) * this.sectorSize;
 
+        // Packed layout: the three boot sectors sit back to back at the very
+        // start, and the data sectors still begin on the fourth full-size slot.
+        if (this.packedBootSectors && sector <= 3) return 16 + (sector - 1) * 128;
+
         const shortBoot = this.shortBootSectors();
         if (sector <= shortBoot) return 16 + (sector - 1) * 128;
         return 16 + shortBoot * 128 + (sector - 1 - shortBoot) * this.sectorSize;
@@ -188,7 +242,7 @@ class ATRImage {
      */
     getSectorSize(sector) {
         if (this.isXFD) return this.sectorSize;
-        return (sector <= this.shortBootSectors()) ? 128 : this.sectorSize;
+        return (sector <= this.logicalBootSectors()) ? 128 : this.sectorSize;
     }
 
     /**
@@ -343,7 +397,11 @@ class ATRImage {
         data[7] = (totalPars >> 24) & 0xFF;
 
         const img = new ATRImage(data);
+        // Images this app writes always use the short boot sector layout, so the
+        // logical and the physical count are the same here.
         img.bootSectorCount = bootSectorCount;
+        img.imageBootSectorCount = bootSectorCount;
+        img.packedBootSectors = false;
         if (isXFD) img.isXFD = true;
         img.calculateGeometry();
         return img;

@@ -32,7 +32,13 @@ Aplikacja ATRaction zapewnia pełną obsługę dwóch głównych formatów konte
 - **Charakterystyka**: Standardowy i najpopularniejszy format kontenera dyskowego stworzony przez Nicka Kennedy'ego dla emulatora SIO2PC.
 - **Struktura**: Obraz składa się z 16-bajtowego nagłówka binarnego oraz zrzutu sektorów dysku.
 - **Sektory Startowe (Boot Sectors)**:
-  - Format ATR nie posiada osobnego pola na liczbę sektorów startowych. Przy sektorach o rozmiarze do 256 B aplikacja (tak jak Altirra) przyjmuje, że **pierwsze 3 sektory są zawsze 128-bajtowe** – wynika to z ograniczeń sprzętowych ROM kontrolerów stacji dysków Atari 810/1050, które podczas rozruchu zawsze odczytują sektory 1–3 jako 128-bajtowe.
+  - Format ATR nie posiada osobnego pola na liczbę sektorów startowych. Dla Atari **pierwsze 3 sektory są zawsze 128-bajtowe** – wynika to z ograniczeń sprzętowych ROM kontrolerów stacji dysków Atari 810/1050, które podczas rozruchu zawsze odczytują sektory 1–3 jako 128-bajtowe.
+  - **Niejednoznaczność w podwójnej gęstości**: to, jak te trzy sektory są *fizycznie zapisane w pliku*, nie jest już jednoznaczne. Spotyka się trzy układy:
+    1. **krótki** (typowy) – trzy sloty po 128 B, dane od offsetu $16+384$;
+    2. **pełne sloty** – każdy sektor startowy zajmuje pełne 256 B, z czego znacząca jest tylko pierwsza połowa;
+    3. **„packed"** – trzy sektory po 128 B jeden za drugim, a reszta trzeciego pełnego slotu wypełniona zerami.
+  - Aplikacja rozróżnia je tak samo jak Altirra – po **liczbie paragrafów z nagłówka**. Paragraf to 16 B, a sektor 256 B to dokładnie 16 paragrafów, więc całkowita liczba pełnowymiarowych sektorów zawsze daje wielokrotność 16; prefiks $3\times128$ B dokłada 24 paragrafy i zostawia resztę 8. Reszta różna od zera oznacza układ krótki, reszta zero – jeden z dwóch pozostałych, rozróżnianych dodatkowo po tym, czy drugi 128-bajtowy slot niesie dane, a piąty jest pusty.
+  - Rozróżnienie ma znaczenie krytyczne: przyjęcie układu krótkiego dla obrazu z pełnymi slotami przesuwa **każdy sektor od czwartego wzwyż o 384 B**, co wyprowadza VTOC poza zasięg i czyni wszystkie pliki nieczytelnymi. Dlatego aplikacja prowadzi dwie osobne liczby – *logiczną* (ile sektorów Atari widzi jako 128-bajtowe, zawsze 3) oraz *fizyczną* (ile jest tak zapisanych w pliku, 3 albo 0). Pierwsza wyznacza rozmiar sektora, druga – jego offset.
   - Przy tworzeniu obrazu o **geometrii niestandardowej** liczba sektorów startowych (0–255) jest dowolna, jednak przy sektorach 256 B ponowne wczytanie pliku zawsze przywróci wartość 3 (ograniczenie samego formatu ATR, nie aplikacji).
   - Przy sektorach **512 B** krótkie sektory startowe nie występują – wszystkie sektory obrazu mają jednakowy rozmiar.
   - Sektory od numeru `bootSectorCount + 1` wzwyż przyjmują pełny rozmiar zadeklarowany w nagłówku.
