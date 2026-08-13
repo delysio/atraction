@@ -266,9 +266,27 @@ class MyDOS {
     }
 
     /**
-     * Reads directory hierarchy starting from root (sectors 361-368)
-     * @param {number} [startSector=361] 
-     * @param {string} [parentPath=''] 
+     * Whether a directory entry marks the end of the directory.
+     *
+     * MyDOS inherits the rule from Atari DOS 2: status $00 means "never used"
+     * and ends enumeration, so entries left behind by the disk's previous
+     * contents stay invisible - to the real system and therefore to us. Kept
+     * here rather than borrowed from AtariDOS2 so that this module stays
+     * loadable on its own; the two must agree.
+     *
+     * @param {Uint8Array} secData Directory sector
+     * @param {number} off Offset of the 16-byte entry
+     * @returns {boolean}
+     */
+    static isDirectoryEnd(secData, off) {
+        return secData[off] === 0x00;
+    }
+
+    /**
+     * Reads directory hierarchy starting from root (sectors 361-368), stopping
+     * at the first never-used entry exactly as the real DOS does.
+     * @param {number} [startSector=361]
+     * @param {string} [parentPath='']
      * @returns {Array<Object>} List of file and directory objects
      */
     getDirectory(startSector = 361, parentPath = '') {
@@ -292,7 +310,9 @@ class MyDOS {
             }
         }
 
+        let endOfDirectory = false;
         for (const sector of dirSectors) {
+            if (endOfDirectory) break;
             const secData = this.atr.readSector(sector);
             // A MyDOS directory sector always holds 8 entries; on double density
             // the upper half of the sector stays unused (64 files per directory).
@@ -302,17 +322,12 @@ class MyDOS {
                 const off = entry * 16;
                 const flag = secData[off];
 
-                let isZero = true;
-                for (let i = 0; i < 16; i++) {
-                    if (secData[off + i] !== 0) {
-                        isZero = false;
-                        break;
-                    }
-                }
-                if (isZero || flag === 0x00) {
-                    brokenDir = true;
-                    globalEntryIndex++;
-                    continue;
+                // A never-used entry ends this directory - see
+                // AtariDOS2.isDirectoryEnd. Every directory carries its own
+                // marker, so a subdirectory ends independently of the root.
+                if (MyDOS.isDirectoryEnd(secData, off)) {
+                    endOfDirectory = true;
+                    break;
                 }
 
                 const isDeleted = flag === 0x80 || (flag & 0x80) !== 0;
@@ -595,13 +610,28 @@ class MyDOS {
         }
         let globalIdx = 0;
         const nameUpper = f83.fullName.toUpperCase();
+        // One pass does two jobs: claim the first reusable slot and reject a
+        // name already taken. Both stop at the end of the directory - past it
+        // there is nothing to collide with, and nothing worth reusing either,
+        // since the marker itself is the slot a new file belongs in.
+        let slotScanEnd = false;
         for (const s of dirSectors) {
+            if (slotScanEnd) break;
             const secData = this.atr.readSector(s);
             const entries = Math.min(MYDOS_DIR_ENTRIES_PER_SECTOR, Math.floor(secData.length / 16));
             for (let e = 0; e < entries; e++) {
                 const off = e * 16;
                 const flag = secData[off];
-                if (flag === 0x00 || flag === 0x80) {
+                if (MyDOS.isDirectoryEnd(secData, off)) {
+                    if (targetSector === 0) {
+                        targetSector = s;
+                        targetOff = off;
+                        targetIndex = globalIdx;
+                    }
+                    slotScanEnd = true;
+                    break;
+                }
+                if (flag === 0x80) {
                     if (targetSector === 0) {
                         targetSector = s;
                         targetOff = off;

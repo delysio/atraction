@@ -34,6 +34,15 @@ if (typeof T === 'undefined') {
     };
 }
 
+// A DOS 2 directory is always 8 sectors of 8 entries, 64 files in total. On a
+// double density disk the entries still occupy only the first 128 bytes of each
+// directory sector and the upper half stays unused, so the count must not be
+// derived from the sector size (ATDiskFSDOS2::LoadDirectory reads 8 per sector
+// whatever the density). Treating the unused half as 8 more slots makes the
+// reader see phantom entries there and the writer put files where no real DOS
+// would ever look for them.
+const DOS2_DIR_ENTRIES_PER_SECTOR = 8;
+
 class AtariDOS2 {
     /**
      * @param {ATRImage} atr Image instance
@@ -292,39 +301,52 @@ class AtariDOS2 {
     }
 
     /**
-     * Reads all directory entries (sectors 361..368)
+     * Whether a directory entry marks the end of the directory.
+     *
+     * Status $00 means "never used", and Atari DOS 2 - MyDOS and DOS 2.5 with
+     * it - stops enumerating there instead of reading the remaining slots
+     * (ATDiskFSDOS2::LoadDirectory in Altirra does the same: `if (!flags)
+     * goto directory_end`). The distinction matters on a disk that was
+     * rewritten with fewer files than it held before: the entries past the
+     * marker survive with perfectly valid status bytes, but they describe the
+     * previous contents and their sectors now belong to other files. Reading
+     * one returns a stranger's data, and deleting one would free sectors that
+     * a live file still uses. A deleted entry ($80) is skipped but does not
+     * end anything - the directory continues past it.
+     *
+     * @param {Uint8Array} secData Directory sector
+     * @param {number} off Offset of the 16-byte entry
+     * @returns {boolean}
+     */
+    static isDirectoryEnd(secData, off) {
+        return secData[off] === 0x00;
+    }
+
+    /**
+     * Reads all directory entries (sectors 361..368), stopping at the first
+     * never-used entry exactly as the real DOS does.
      * @returns {Array<Object>} List of file objects
      */
     getDirectory() {
         const files = [];
         let globalEntryIndex = 0;
         let brokenDir = false;
+        let endOfDirectory = false;
 
-        for (let sector = 361; sector <= 368; sector++) {
+        for (let sector = 361; sector <= 368 && !endOfDirectory; sector++) {
             const secData = this.atr.readSector(sector);
             // Entry count depends on sector size: 16 bytes per entry
-            const entriesPerSector = Math.floor(secData.length / 16);
-            let sectorEmpty = true;
+            const entriesPerSector = Math.min(DOS2_DIR_ENTRIES_PER_SECTOR, Math.floor(secData.length / 16));
 
             for (let entry = 0; entry < entriesPerSector; entry++) {
                 const off = entry * 16;
                 const flag = secData[off];
 
-                let isZero = true;
-                for (let i = 0; i < 16; i++) {
-                    if (secData[off + i] !== 0) {
-                        isZero = false;
-                        break;
-                    }
-                }
-                if (isZero || flag === 0x00) {
-                    // All-zero entry = end of directory (stop checking after end-of-dir)
-                    brokenDir = true;
-                    globalEntryIndex++;
-                    continue;
+                if (AtariDOS2.isDirectoryEnd(secData, off)) {
+                    endOfDirectory = true;
+                    break;
                 }
 
-                sectorEmpty = false;
                 const isDeleted = flag === 0x80;
                 const dfs = (flag & 0x9C) === 0; // Accept only valid DOS 2 flags
                 if (brokenDir && !isDeleted && !dfs) {
@@ -465,7 +487,7 @@ class AtariDOS2 {
 
         const sectorSize = this.atr.getSectorSize(4);
         const payloadSize = sectorSize - 3;
-        const entriesPerSector = Math.floor(sectorSize / 16);
+        const entriesPerSector = Math.min(DOS2_DIR_ENTRIES_PER_SECTOR, Math.floor(sectorSize / 16));
 
         // Calculate needed sectors
         const sectorsNeeded = Math.max(1, Math.ceil(fileBytes.length / payloadSize));
@@ -476,14 +498,18 @@ class AtariDOS2 {
             throw new Error(T("Brak wolnego miejsca na dysku. Wymagane: {0} sektorów, Dostępne: {1}", sectorsNeeded, freeCount));
         }
 
-        // Check for duplicate filename (case-insensitive duplicate detection)
+        // Check for duplicate filename (case-insensitive duplicate detection).
+        // Only up to the end of the directory: a name that appears past the
+        // marker belongs to the disk's previous contents and is no obstacle.
         const nameUpper = f83.fullName.toUpperCase();
-        for (let sector = 361; sector <= 368; sector++) {
+        let dupScanEnd = false;
+        for (let sector = 361; sector <= 368 && !dupScanEnd; sector++) {
             const secData = this.atr.readSector(sector);
             for (let e = 0; e < entriesPerSector; e++) {
                 const off = e * 16;
                 const flag = secData[off];
-                if (flag === 0x00 || flag === 0x80) continue;
+                if (AtariDOS2.isDirectoryEnd(secData, off)) { dupScanEnd = true; break; }
+                if (flag === 0x80) continue;
                 if ((flag & 0x40) === 0) continue;
                 const nameBytes = secData.subarray(off + 5, off + 13);
                 const extBytes = secData.subarray(off + 13, off + 16);

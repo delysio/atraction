@@ -149,9 +149,13 @@ class DiskManager {
             const vtocPlausible = (vtocByte === 0 || vtocByte >= 2) && vtocByte <= 35 && (360 - (vtocSpan - 1)) > 3;
 
             if (vtocPlausible && totSectors >= 700 && totSectors <= this.atr.sectorCount + 10) {
-                // Check if MyDOS subdirectories are present in root directory (sectors 361..368)
+                // Check if MyDOS subdirectories are present in root directory
+                // (sectors 361..368). Only up to the end of the directory: a
+                // subdirectory entry past the $00 marker is a leftover from the
+                // disk's previous contents and must not decide the format.
                 let hasMyDOSSubdirs = false;
-                for (let s = 361; s <= 368 && s <= this.atr.sectorCount; s++) {
+                let dirEnded = false;
+                for (let s = 361; s <= 368 && s <= this.atr.sectorCount && !dirEnded; s++) {
                     try {
                         const secData = this.atr.readSector(s);
                         // DOS 2 / MyDOS directory sectors always hold 8 entries,
@@ -159,7 +163,8 @@ class DiskManager {
                         const dirBytes = Math.min(secData.length, 128);
                         for (let e = 0; e < dirBytes; e += 16) {
                             const flag = secData[e];
-                            if (flag !== 0x00 && flag !== 0x80 && (flag & 0x10) !== 0 && (flag & 0x88) === 0) {
+                            if (flag === 0x00) { dirEnded = true; break; }
+                            if (flag !== 0x80 && (flag & 0x10) !== 0 && (flag & 0x88) === 0) {
                                 const sectorCount = secData[e + 1] | (secData[e + 2] << 8);
                                 const startSector = secData[e + 3] | (secData[e + 4] << 8);
                                 if (startSector >= 4 && startSector <= this.atr.sectorCount && sectorCount === 8) {

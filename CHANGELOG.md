@@ -9,6 +9,40 @@ commita.
 
 ---
 
+## 2026-08-14
+
+### Poprawione
+
+- Katalog Atari DOS 2, DOS 2.5 i MyDOS kończy się na pierwszym wpisie o
+  statusie `$00`, tak jak u prawdziwego DOS-u. Wcześniej aplikacja czytała
+  wszystkie 64 pozycje i pokazywała wpisy pozostałe po poprzedniej zawartości
+  dyskietki jako istniejące pliki. Były to pliki widmowe: wskazywane przez nie
+  sektory należą już do innych plików, więc odczyt zwracał cudze dane, a
+  skasowanie takiego wpisu zwolniłoby w bitmapie VTOC sektory używane przez
+  działający plik i przy kolejnym zapisie zniszczyłoby sprawny dysk. Walidacja
+  alokacji tego nie wychwytywała, bo sektory widm są prawidłowo oznaczone jako
+  zajęte przez swoich rzeczywistych właścicieli. Wpis skasowany (`$80`) nadal
+  niczego nie kończy. Obrazem referencyjnym jest `MCP.atr`, na którym różnica
+  wynosiła jedenaście widmowych wpisów i jeden nieistniejący katalog.
+- Sektor katalogowy Atari DOS 2 mieści 8 wpisów także w gęstości podwójnej.
+  Liczba wpisów była wyprowadzana z rozmiaru sektora, co na dyskach DD dawało
+  16 slotów: czytnik widział widma w nieużywanej górnej połowie sektora, a
+  zapis mógł umieścić tam plik, którego prawdziwy DOS nigdy by nie znalazł.
+  MyDOS miał tę wartość ograniczoną poprawnie od początku.
+- Rozpoznawanie MyDOS po obecności podkatalogu w katalogu głównym pomija wpisy
+  za znacznikiem końca, więc pozostałość po poprzedniej zawartości dysku nie
+  decyduje już o wyborze systemu plików.
+
+### Uwaga dla użytkowników
+
+Dyski, na których widoczne były wpisy za znacznikiem końca katalogu, pokażą
+teraz mniej plików. To nie jest utrata danych: te pozycje nigdy nie były
+widoczne na prawdziwym Atari i nie opisywały istniejących plików. Na zbiorze
+227 obrazów testowych zmiana dotknęła 29 z nich, w tym 28 wyłącznie wpisów o
+nazwach złożonych ze śmieci.
+
+---
+
 ## 2026-08-13 — `9886a50`
 
 ### Dodane
