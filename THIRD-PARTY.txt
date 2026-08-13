@@ -48,7 +48,9 @@ Altirra's source open as the reference, which makes it derived work:
   js/cpm.js
       from ATIO/source/diskfscpm.cpp        (C) 2009-2021 Avery Lee
       The CP/M 2.2 (Indus GT) filesystem layout and its inverted (XOR $FF)
-      byte encoding.
+      byte encoding. The Atari 1090 CP/M profile in the same file is not from
+      Altirra, which does not support that format - its geometry was read out
+      of the DPB table in the card's own CP/M BIOS.
 
   js/engine.js
       from ATIO/source/diskfs.cpp           (C) 2009-2014 Avery Lee

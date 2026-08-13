@@ -99,6 +99,8 @@ var EN_DICT = {
     "Błędna bitmapa alokacji w VTOC (brak wolnych sektorów w bitmapie mimo wolnej przestrzeni). Obraz zamontowano w trybie tylko do odczytu (read-only), aby zapobiec uszkodzeniu danych.": "Invalid VTOC allocation bitmap (no free sectors in the bitmap despite free space being reported). The image has been mounted read-only to prevent data corruption.",
     "Błędna bitmapa alokacji: zajęte sektory są oznaczone jako wolne w VTOC. Obraz zamontowano w trybie tylko do odczytu (read-only), aby zapobiec uszkodzeniu danych.": "Invalid allocation bitmap: sectors in use are marked free in the VTOC. The image has been mounted read-only to prevent data corruption.",
     "Błędna mapa bitowa SpartaDOS: sektory zajęte przez pliki są oznaczone jako wolne. Obraz zamontowano w trybie tylko do odczytu (read-only), aby zapobiec uszkodzeniu danych.": "Invalid SpartaDOS bitmap: sectors used by files are marked free. The image has been mounted read-only to prevent data corruption.",
+    "CP/M 2.2 (Atari 1090) obsługuje od {0} do {1} sektorów.": "CP/M 2.2 (Atari 1090) supports {0} to {1} sectors.",
+    "CP/M 2.2 (Atari 1090) wymaga sektorów 128-bajtowych.": "CP/M 2.2 (Atari 1090) requires 128-byte sectors.",
     "CP/M 2.2 (Indus GT) obsługuje od 64 do 1068 sektorów.": "CP/M 2.2 (Indus GT) supports 64 to 1068 sectors.",
     "CP/M 2.2 (Indus GT) wymaga sektorów 256-bajtowych.": "CP/M 2.2 (Indus GT) requires 256-byte sectors.",
     "Custom ({0} Sektorów, {1}B)": "Custom ({0} Sectors, {1}B)",
@@ -231,6 +233,7 @@ var EN_DICT = {
     "MyDOS 4.5x (SD / MD / DD / QD)": "MyDOS 4.5x (SD / MD / DD / QD)",
     "Sparta DOS (SD / MD / DD / QD)": "Sparta DOS (SD / MD / DD / QD)",
     "CP/M 2.2 (Indus GT - DD 180 KB)": "CP/M 2.2 (Indus GT - DD 180 KB)",
+    "CP/M 2.2 (Atari 1090 - SD / MD)": "CP/M 2.2 (Atari 1090 - SD / MD)",
     "Brak (dysk niesformatowany)": "None (unformatted disk)",
     "Gęstość i Rozmiar Dysku:": "Disk Density and Size:",
     "SD - SS/SD (90 KB / 720 Sektorów 128B)": "SD - SS/SD (90 KB / 720 Sectors 128B)",
@@ -270,8 +273,8 @@ var EN_DICT = {
     "1. Wstęp i Przegląd Aplikacji": "1. Introduction and Application Overview",
     "<strong>ATRaction</strong> to zaawansowana aplikacja internetowa (Single Page Application) przeznaczona do tworzenia, odczytu, modyfikacji oraz analizy obrazów dyskietek elastycznych (formaty <code>.ATR</code> i <code>.XFD</code>) dla 8-bitowych komputerów Atari (seria 400/800, XL, XE). Całe przetwarzanie odbywa się lokalnie w przeglądarce za pomocą buforów binarnych <code>Uint8Array</code>, gwarantując prywatność i natychmiastowe działanie.":
         "<strong>ATRaction</strong> is an advanced web application (Single Page Application) for creating, reading, modifying and analyzing floppy disk images (<code>.ATR</code> and <code>.XFD</code> formats) for 8-bit Atari computers (400/800, XL, XE series). All processing happens locally in the browser using <code>Uint8Array</code> binary buffers, guaranteeing privacy and instant operation.",
-    "<strong>Obsługiwane systemy plików:</strong> Atari DOS 2.0S/2.0D, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), LiteDOS-SE oraz CP/M 2.2 (Indus GT).":
-        "<strong>Supported file systems:</strong> Atari DOS 2.0S/2.0D, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), LiteDOS-SE and CP/M 2.2 (Indus GT).",
+    "<strong>Obsługiwane systemy plików:</strong> Atari DOS 2.0S/2.0D, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), LiteDOS-SE oraz CP/M 2.2 (Indus GT i Atari 1090).":
+        "<strong>Supported file systems:</strong> Atari DOS 2.0S/2.0D, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), LiteDOS-SE and CP/M 2.2 (Indus GT and Atari 1090).",
     "<strong>Gęstości i formaty:</strong> SD (90 KB), MD/ED (130 KB), DD (180 KB), QD (368 KB), DS/QD (720 KB), <strong>geometria niestandardowa</strong> (dowolna liczba sektorów, sektory 128/256/512 B) oraz surowe obrazy <strong>XFD</strong>.":
         "<strong>Densities and formats:</strong> SD (90 KB), MD/ED (130 KB), DD (180 KB), QD (368 KB), DS/QD (720 KB), <strong>custom geometry</strong> (any sector count, 128/256/512 B sectors), and raw <strong>XFD</strong> images.",
     // innerHTML re-escapes "&" on read, so the key of a data-i18n-html element
@@ -304,6 +307,11 @@ var EN_DICT = {
         "<strong>LiteDOS-SE</strong> is recognized in two variants: the classic one (bits 7–6 of sector 360's ID byte equal to <code>01</code>, bitmap starting at offset <code>$0A</code>) and the newer 2.x one (bits <code>10</code>, text signature <code>LiteDOS(c)MrA</code>, 512-bit bitmap starting at <code>$20</code>). The space taken by the DOS kernel itself – LiteDOS has no DOS.SYS file – is recognized as a system area and is not reported as lost sectors.",
     "<strong>CP/M 2.2</strong> dla stacji Indus GT przechowuje wszystkie bajty w postaci zanegowanej (XOR <code>$FF</code>). Katalog (64 pozycje) zajmuje sektory 37–44, dane są przydzielane blokami po 1 KB. Format zapisuje jedynie liczbę 128-bajtowych rekordów, więc odczytany rozmiar pliku jest zaokrąglany w górę do wielokrotności 128 bajtów.":
         "<strong>CP/M 2.2</strong> for the Indus GT drive stores every byte inverted (XOR <code>$FF</code>). The directory (64 entries) occupies sectors 37–44, and data is allocated in 1 KB blocks. The format only stores a count of 128-byte records, so the reported file size is always rounded up to a multiple of 128 bytes.",
+
+    "<strong>CP/M 2.2</strong> dla karty CP/M urządzenia Atari 1090 zapisuje te same struktury bez negacji, na dyskietkach o sektorach 128-bajtowych. Sektory 1–78 to obszar systemowy (3 ścieżki po 26 rekordów), katalog (64 pozycje) zajmuje sektory 79–94, a blok alokacji liczy 1 KB, czyli 8 sektorów. Rekord CP/M odpowiada jednemu sektorowi Atari, a mapowanie jest liniowe – BIOS karty nie publikuje tablicy translacji sektorów. Jego DPB udostępnia 119 bloków (DSM = 118), co odpowiada dyskietce MD 130 KB; na krótszym nośniku limitem pozostaje jego własny rozmiar.":
+        "<strong>CP/M 2.2</strong> for the CP/M card of the Atari 1090 writes the same structures without inversion, on disks with 128-byte sectors. Sectors 1–78 are the system area (3 tracks of 26 records), the directory (64 entries) occupies sectors 79–94, and an allocation block holds 1 KB, i.e. 8 sectors. A CP/M record is one Atari sector and the mapping is linear – the card's BIOS publishes no sector translation table. Its DPB offers 119 blocks (DSM = 118), which matches the 130 KB MD disk; on a shorter medium its own size is the limit instead.",
+
+    "102–1040 sektorów, wyłącznie 128 B": "102–1040 sectors, 128 B only",
     "3. Geometrie Dysków": "3. Disk Geometries",
     "Symbol": "Symbol",
     "Nazwa Gęstości": "Density Name",

@@ -298,6 +298,7 @@
                         <option value="MyDOS" data-i18n>MyDOS 4.5x (SD / MD / DD / QD)</option>
                         <option value="SpartaDOS" data-i18n>Sparta DOS (SD / MD / DD / QD)</option>
                         <option value="CPM" data-i18n>CP/M 2.2 (Indus GT - DD 180 KB)</option>
+                        <option value="CPM1090" data-i18n>CP/M 2.2 (Atari 1090 - SD / MD)</option>
                         <option value="NONE" id="optFsNone" data-i18n>Brak (dysk niesformatowany)</option>
                     </select>
                 </div>
@@ -493,7 +494,7 @@
                     <h3 style="font-size: 15px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;" data-i18n>1. Wstęp i Przegląd Aplikacji</h3>
                     <p style="margin-bottom: 8px;" data-i18n-html><strong>ATRaction</strong> to zaawansowana aplikacja internetowa (Single Page Application) przeznaczona do tworzenia, odczytu, modyfikacji oraz analizy obrazów dyskietek elastycznych (formaty <code>.ATR</code> i <code>.XFD</code>) dla 8-bitowych komputerów Atari (seria 400/800, XL, XE). Całe przetwarzanie odbywa się lokalnie w przeglądarce za pomocą buforów binarnych <code>Uint8Array</code>, gwarantując prywatność i natychmiastowe działanie.</p>
                     <ul style="padding-left: 20px; margin: 0;">
-                        <li data-i18n-html><strong>Obsługiwane systemy plików:</strong> Atari DOS 2.0S/2.0D, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), LiteDOS-SE oraz CP/M 2.2 (Indus GT).</li>
+                        <li data-i18n-html><strong>Obsługiwane systemy plików:</strong> Atari DOS 2.0S/2.0D, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), LiteDOS-SE oraz CP/M 2.2 (Indus GT i Atari 1090).</li>
                         <li data-i18n-html><strong>Gęstości i formaty:</strong> SD (90 KB), MD/ED (130 KB), DD (180 KB), QD (368 KB), DS/QD (720 KB), <strong>geometria niestandardowa</strong> (dowolna liczba sektorów, sektory 128/256/512 B) oraz surowe obrazy <strong>XFD</strong>.</li>
                         <li data-i18n-html><strong>Zarządzanie plikami:</strong> Dodawanie, usuwanie, zmiana nazwy (ATASCII 8.3 / CP/M), blokowanie (Lock/Unlock), atrybuty SDFS (A/H/P) oraz eksport na PC. Drag &amp; Drop plików <code>.ATR</code> oraz <code>.XFD</code>.</li>
                         <li data-i18n-html><strong>Podkatalogi:</strong> Tworzenie i szybka nawigacja po drzewie podkatalogów (MyDOS, SpartaDOS).</li>
@@ -549,9 +550,15 @@
                                 <td style="padding: 6px 8px;" data-i18n>nie</td>
                                 <td style="padding: 6px 8px;" data-i18n>nie &ndash; tylko odczyt, zapis i formatowanie istniejących</td>
                             </tr>
-                            <tr>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
                                 <td style="padding: 6px 8px;"><strong>CP/M 2.2 (Indus GT)</strong></td>
                                 <td style="padding: 6px 8px;" data-i18n>64&ndash;1068 sektorów, wyłącznie 256 B</td>
+                                <td style="padding: 6px 8px;" data-i18n>nie</td>
+                                <td style="padding: 6px 8px;" data-i18n>tak</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 8px;"><strong>CP/M 2.2 (Atari 1090)</strong></td>
+                                <td style="padding: 6px 8px;" data-i18n>102&ndash;1040 sektorów, wyłącznie 128 B</td>
                                 <td style="padding: 6px 8px;" data-i18n>nie</td>
                                 <td style="padding: 6px 8px;" data-i18n>tak</td>
                             </tr>
@@ -559,7 +566,8 @@
                     </table>
                     <p style="margin: 0 0 8px 0;" data-i18n-html><strong>Atari DOS 2.0S</strong> był dystrybuowany wyłącznie na dyskietkach SD, a <strong>DOS 2.5</strong> dodatkowo na MD (1040 sektorów, 130 KB) &ndash; nigdy na DD, QD ani 720K. Okno tworzenia dysku wymusza te ograniczenia, ukrywając niedostępne gęstości w rozwijanej liście. Sektory startowe oraz pliki <code>DOS.SYS</code>/<code>DUP.SYS</code> instalowane przy tworzeniu nowego dysku są bajt w bajt identyczne z oryginalnymi obrazami Atari DOS &ndash; dla DOS 2.5 wariant MD ma inny plik <code>DOS.SYS</code> niż wariant SD (różnica w osadzonej tabeli geometrii dysku), dlatego aplikacja instaluje odpowiedni zestaw zależnie od wybranej gęstości.</p>
                     <p style="margin: 0 0 8px 0;" data-i18n-html><strong>LiteDOS-SE</strong> rozpoznawany jest w dwóch odmianach: klasycznej (bity 7&ndash;6 bajtu ID sektora 360 równe <code>01</code>, bitmapa od offsetu <code>$0A</code>) oraz nowszej 2.x (bity <code>10</code>, sygnatura tekstowa <code>LiteDOS(c)MrA</code>, bitmapa 512-bitowa od <code>$20</code>). Miejsce zajmowane przez samo jądro DOS-u &ndash; w LiteDOS nie ma pliku DOS.SYS &ndash; jest rozpoznawane jako obszar systemowy i nie jest zgłaszane jako zagubione sektory.</p>
-                    <p style="margin: 0;" data-i18n-html><strong>CP/M 2.2</strong> dla stacji Indus GT przechowuje wszystkie bajty w postaci zanegowanej (XOR <code>$FF</code>). Katalog (64 pozycje) zajmuje sektory 37&ndash;44, dane są przydzielane blokami po 1 KB. Format zapisuje jedynie liczbę 128-bajtowych rekordów, więc odczytany rozmiar pliku jest zaokrąglany w górę do wielokrotności 128 bajtów.</p>
+                    <p style="margin: 0 0 8px 0;" data-i18n-html><strong>CP/M 2.2</strong> dla stacji Indus GT przechowuje wszystkie bajty w postaci zanegowanej (XOR <code>$FF</code>). Katalog (64 pozycje) zajmuje sektory 37&ndash;44, dane są przydzielane blokami po 1 KB. Format zapisuje jedynie liczbę 128-bajtowych rekordów, więc odczytany rozmiar pliku jest zaokrąglany w górę do wielokrotności 128 bajtów.</p>
+                    <p style="margin: 0;" data-i18n-html><strong>CP/M 2.2</strong> dla karty CP/M urządzenia Atari 1090 zapisuje te same struktury bez negacji, na dyskietkach o sektorach 128-bajtowych. Sektory 1&ndash;78 to obszar systemowy (3 ścieżki po 26 rekordów), katalog (64 pozycje) zajmuje sektory 79&ndash;94, a blok alokacji liczy 1 KB, czyli 8 sektorów. Rekord CP/M odpowiada jednemu sektorowi Atari, a mapowanie jest liniowe &ndash; BIOS karty nie publikuje tablicy translacji sektorów. Jego DPB udostępnia 119 bloków (DSM = 118), co odpowiada dyskietce MD 130 KB; na krótszym nośniku limitem pozostaje jego własny rozmiar.</p>
                 </section>
 
                 <section>
@@ -778,17 +786,17 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- JavaScript Modules -->
-    <script src="js/i18n.js?v=20260807"></script>
+    <script src="js/i18n.js?v=20260813"></script>
     <script src="js/atascii.js?v=20260726_3"></script>
     <script src="js/atr.js?v=20260726_3"></script>
     <script src="js/dos2.js?v=20260727"></script>
     <script src="js/litedos.js?v=20260727"></script>
     <script src="js/mydos.js?v=20260727"></script>
     <script src="js/spartados.js?v=20260727"></script>
-    <script src="js/cpm.js?v=20260726_1"></script>
+    <script src="js/cpm.js?v=20260813"></script>
     <script src="js/dos_templates.js?v=20260727_3"></script>
-    <script src="js/engine.js?v=20260804"></script>
-    <script src="js/app.js?v=20260804"></script>
+    <script src="js/engine.js?v=20260813"></script>
+    <script src="js/app.js?v=20260813"></script>
 </body>
 
 </html>

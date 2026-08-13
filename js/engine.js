@@ -104,11 +104,12 @@ class DiskManager {
             } catch (e) { }
         }
 
-        // Check CP/M 2.2 (Indus GT) FIRST
-        if (typeof IndusCPM !== 'undefined' && IndusCPM.detect(this.atr)) {
+        // Check CP/M 2.2 (Indus GT / Atari 1090) FIRST
+        const cpmProfile = (typeof CPM !== 'undefined') ? CPM.detectProfile(this.atr) : null;
+        if (cpmProfile) {
             try {
-                this.dos = new IndusCPM(this.atr);
-                this.dosType = 'CP/M 2.2 (Indus GT)';
+                this.dos = new CPM(this.atr, cpmProfile);
+                this.dosType = cpmProfile.dosType;
                 // Do not force isXFD here: sector access is already geometry
                 // aware, and flipping the flag without converting the data
                 // shifts every sector of an ATR-backed image by 384 bytes.
@@ -358,6 +359,29 @@ class DiskManager {
     }
 
     /**
+     * Maps a DOS selector onto a CP/M layout profile. The two CP/M variants
+     * share one module and differ only by profile, so every place that has to
+     * tell them apart - geometry checks, creation, formatting, export - goes
+     * through here rather than matching on strings of its own.
+     * @param {string} dosType
+     * @returns {Object|null} The profile, or null when this is not a CP/M type
+     */
+    static cpmProfileFor(dosType) {
+        if (typeof CPM === 'undefined') return null;
+        switch (dosType) {
+            case 'CPM1090':
+            case 'CP/M 2.2 (Atari 1090)':
+                return CPM.PROFILES.ATARI1090;
+            case 'CPM':
+            case 'CP/M':
+            case 'CP/M 2.2 (Indus GT)':
+                return CPM.PROFILES.INDUS;
+            default:
+                return null;
+        }
+    }
+
+    /**
      * Checks whether a filesystem can be put on the given geometry.
      * @param {string} dosType
      * @param {{sectorCount: number, sectorSize: number, bootSectorCount: number}} geom
@@ -427,6 +451,21 @@ class DiskManager {
                 if (sectorCount < 64 || sectorCount > 44 + 256 * 4) return T('CP/M 2.2 (Indus GT) obsługuje od 64 do 1068 sektorów.');
                 return null;
 
+            case 'CPM1090':
+            case 'CP/M 2.2 (Atari 1090)': {
+                // Only the 128-byte media are covered - the card's BIOS also
+                // carries DPBs for 256-byte disks, but nothing to verify them
+                // against, so they stay out until a reference image shows up.
+                const p1090 = DiskManager.cpmProfileFor(dosType);
+                const minSec = p1090 ? p1090.minSectors : 102;
+                const maxSec = p1090 ? p1090.maxSectors : 1040;
+                if (sectorSize !== 128) return T('CP/M 2.2 (Atari 1090) wymaga sektorów 128-bajtowych.');
+                if (sectorCount < minSec || sectorCount > maxSec) {
+                    return T('CP/M 2.2 (Atari 1090) obsługuje od {0} do {1} sektorów.', minSec, maxSec);
+                }
+                return null;
+            }
+
             case 'LiteDOS':
             case 'LiteDOS-SE':
                 return T('Tworzenie nowych obrazów LiteDOS nie jest obsługiwane.');
@@ -445,10 +484,17 @@ class DiskManager {
      */
     createNew(density, dosType = 'DOS2PLUS', installSystem = true, custom = null) {
         let actualDensity = density;
-        let isCPM = false;
-        if (dosType === 'CPM' || dosType === 'CP/M 2.2 (Indus GT)' || dosType === 'CP/M') {
-            isCPM = true;
-            if (density !== 'CUSTOM') actualDensity = 'DD';
+        const cpmProfile = DiskManager.cpmProfileFor(dosType);
+        // Indus CP/M images travel as headerless XFD, the 1090 ones as ATR
+        const isCPM = !!cpmProfile && cpmProfile.container === 'xfd';
+        if (cpmProfile) {
+            if (density !== 'CUSTOM') {
+                // Each variant only reads its own kind of medium, so anything
+                // the caller asks for outside that list becomes the native one:
+                // 180 KB DD for the Indus GT, 130 KB MD/ED for the 1090 card.
+                const requested = (density === 'MD') ? 'ED' : density;
+                actualDensity = cpmProfile.densities.includes(requested) ? requested : cpmProfile.densities[0];
+            }
         } else if (density === 'MD') {
             actualDensity = 'ED';
         }
@@ -580,13 +626,8 @@ class DiskManager {
             this.dosType = 'SpartaDOS';
         } else if (dosType === 'LiteDOS' || dosType === 'LiteDOS-SE') {
             throw new Error(T("Tworzenie nowych obrazów w formacie LiteDOS nie jest obsługiwane. Aplikacja jedynie odczytuje, modyfikuje i formatuje istniejące dyski LiteDOS."));
-        } else if (dosType === 'CPM' || dosType === 'CP/M 2.2 (Indus GT)') {
-            if (typeof IndusCPM !== 'undefined') {
-                IndusCPM.formatDisk(this.atr);
-                this.dos = new IndusCPM(this.atr);
-                this.dosType = 'CP/M 2.2 (Indus GT)';
-                if (this.atr.convertToXFD) this.atr.convertToXFD();
-            }
+        } else if (cpmProfile) {
+            this.formatAsCPM(cpmProfile);
         } else {
             this.dos = AtariDOS2.formatDisk(this.atr, dosType);
             this.dosType = dosType;
@@ -595,8 +636,21 @@ class DiskManager {
     }
 
     /**
+     * Lays a fresh CP/M directory on the mounted image. The reserved system
+     * tracks are left untouched, so a bootable disk keeps its CP/M system;
+     * a disk created here has none and will not boot.
+     * @param {Object} profile
+     */
+    formatAsCPM(profile) {
+        CPM.formatDisk(this.atr, profile);
+        this.dos = new CPM(this.atr, profile);
+        this.dosType = profile.dosType;
+        if (profile.container === 'xfd' && this.atr.convertToXFD) this.atr.convertToXFD();
+    }
+
+    /**
      * Formats current loaded image
-     * @param {'Atari DOS'|'DOS2.5'|'MyDOS'|'SpartaDOS'|'LiteDOS'} dosType 
+     * @param {'Atari DOS'|'DOS2.5'|'MyDOS'|'SpartaDOS'|'LiteDOS'} dosType
      */
     format(dosType = 'Atari DOS') {
         if (!this.atr) throw new Error(T("Brak wczytanego obrazu ATR."));
@@ -617,13 +671,8 @@ class DiskManager {
             }
             this.dos = LiteDOS.formatDisk(this.atr, clusterSize);
             this.dosType = 'LiteDOS-SE';
-        } else if (dosType === 'CPM' || dosType === 'CP/M 2.2 (Indus GT)') {
-            if (typeof IndusCPM !== 'undefined') {
-                IndusCPM.formatDisk(this.atr);
-                this.dos = new IndusCPM(this.atr);
-                this.dosType = 'CP/M 2.2 (Indus GT)';
-                if (this.atr.convertToXFD) this.atr.convertToXFD();
-            }
+        } else if (DiskManager.cpmProfileFor(dosType)) {
+            this.formatAsCPM(DiskManager.cpmProfileFor(dosType));
         } else {
             this.dos = AtariDOS2.formatDisk(this.atr, dosType);
             this.dosType = dosType;
@@ -637,7 +686,9 @@ class DiskManager {
      */
     export() {
         if (!this.atr) throw new Error(T("Brak wczytanego obrazu ATR."));
-        if (this.dosType === 'CP/M 2.2 (Indus GT)' || (typeof IndusCPM !== 'undefined' && this.dos instanceof IndusCPM)) {
+        // Only the Indus GT variant is passed around as a headerless XFD; the
+        // 1090 images are ordinary, Atari-bootable ATR files and must stay that way.
+        if (typeof CPM !== 'undefined' && this.dos instanceof CPM && this.dos.profile.container === 'xfd') {
             if (this.atr.convertToXFD) this.atr.convertToXFD();
         }
         return this.atr.export();

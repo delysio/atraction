@@ -591,7 +591,10 @@ document.addEventListener('DOMContentLoaded', () => {
             dosCode = 'D2P';
         }
 
-        const ext = (dosCode === 'CPM' || (diskManager.atr && diskManager.atr.isXFD)) ? 'xfd' : 'atr';
+        // Indus GT CP/M images are conventionally headerless XFD; the Atari 1090
+        // ones are plain ATR, so the container follows the CP/M profile.
+        const cpmContainer = (diskManager.dos && diskManager.dos.profile) ? diskManager.dos.profile.container : null;
+        const ext = (cpmContainer === 'xfd' || (diskManager.atr && diskManager.atr.isXFD)) ? 'xfd' : 'atr';
         return `${densityCode}_${dosCode}.${ext}`;
     }
 
@@ -697,6 +700,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (optDSDD) optDSDD.style.display = 'none';
             if (newDiskDensity.value !== 'CUSTOM') newDiskDensity.value = 'DD';
             newDiskDensity.disabled = false;
+        } else if (dosVal === 'CPM1090') {
+            // The 1090 card reads 128-byte media only; MD/ED is the size its
+            // BIOS is set up for, SD works but leaves part of the DPB unused
+            if (optSD) optSD.style.display = 'block';
+            if (optMD) optMD.style.display = 'block';
+            if (optDD) optDD.style.display = 'none';
+            if (optQD) optQD.style.display = 'none';
+            if (optDSDD) optDSDD.style.display = 'none';
+            if (newDiskDensity.value === 'DD' || newDiskDensity.value === 'QD' || newDiskDensity.value === 'DSDD') {
+                newDiskDensity.value = 'MD';
+            } else if (newDiskDensity.value !== 'CUSTOM' && newDiskDensity.value !== 'SD') {
+                newDiskDensity.value = 'MD';
+            }
+            newDiskDensity.disabled = false;
         } else if (dosVal === 'DOS2') {
             // Atari DOS 2.0S only ever shipped for the classic SD disk
             if (optSD) optSD.style.display = 'block';
@@ -740,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // only exist for the standard densities.
         const isCustom = newDiskDensity.value === 'CUSTOM';
         if (chkInstallSystem) {
-            if (isCustom || dosVal === 'SpartaDOS' || dosVal === 'CPM') {
+            if (isCustom || dosVal === 'SpartaDOS' || dosVal === 'CPM' || dosVal === 'CPM1090') {
                 chkInstallSystem.checked = false;
                 chkInstallSystem.disabled = true;
             } else {
@@ -794,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!diskManager.atr) return;
         if (confirm(T(`Czy na pewno chcesz sformatować dysk? Wszystkie dane zostaną utracone.`))) {
             try {
-                const dosType = diskManager.dosType.includes('LiteDOS') ? 'LiteDOS' : (diskManager.dosType.includes('MyDOS') ? 'MyDOS' : (diskManager.dosType.includes('Sparta') ? 'SpartaDOS' : (diskManager.dosType.includes('CP/M') || diskManager.dosType.includes('CPM') ? 'CPM' : (diskManager.dosType.includes('2.5') ? 'DOS2.5' : 'Atari DOS'))));
+                const dosType = diskManager.dosType.includes('LiteDOS') ? 'LiteDOS' : (diskManager.dosType.includes('MyDOS') ? 'MyDOS' : (diskManager.dosType.includes('Sparta') ? 'SpartaDOS' : (diskManager.dosType.includes('CP/M') || diskManager.dosType.includes('CPM') ? (diskManager.dosType.includes('1090') ? 'CPM1090' : 'CPM') : (diskManager.dosType.includes('2.5') ? 'DOS2.5' : 'Atari DOS'))));
                 diskManager.format(dosType);
                 refreshUI();
                 showToast(T("Dysk został pomyślnie sformatowany."), "success");

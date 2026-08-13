@@ -10,7 +10,7 @@
 Aplikacja została zaprojektowana od podstaw w czystym języku JavaScript (ES6+), HTML5 oraz CSS3, bez wykorzystywania zewnętrznych bibliotek czy frameworków. Całe przetwarzanie odbywa się lokalnie w przeglądarce internetowej użytkownika za pomocą manipulacji buforami binarnymi `Uint8Array`, co gwarantuje natychmiastowe działanie, pełne bezpieczeństwo danych oraz niezależność od serwerów zewnętrznych.
 
 ### Kluczowe cechy aplikacji:
-- **Obsługa wielu systemów plików**: Atari DOS 2.0S, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), **LiteDOS-SE** oraz **CP/M 2.2 dla stacji Indus GT**.
+- **Obsługa wielu systemów plików**: Atari DOS 2.0S, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), **LiteDOS-SE** oraz **CP/M 2.2** w dwóch wariantach – dla stacji **Indus GT** i dla karty CP/M urządzenia **Atari 1090**.
 - **Obsługa obrazów ATR oraz surowych plików XFD**: Wykrywanie i wirtualne pakowanie surowych obrazów `.XFD` (bez nagłówka ATR) z eksportem do czystego formatu XFD.
 - **Obsługa wszystkich gęstości dysków oraz geometrii niestandardowej**: SD (Single Density), MD/ED (Medium/Enhanced Density), DD (Double Density), QD (Quad Density), DS/QD (720 KB) oraz dowolna geometria **Niestandardowa** (własna liczba sektorów, sektory 128/256/512 B, własna liczba sektorów startowych).
 - **Operacje na plikach**: Dodawanie plików, usuwanie, zmiana nazwy (format 8.3 ATASCII / CP/M), zmiana statusu blokady (Lock/Unlock / Read-Only), edycja atrybutów **A/H/P** dla SpartaDOS SDFS oraz eksport plików na komputer PC.
@@ -104,6 +104,7 @@ Poniższa tabela odtwarza logikę `DiskManager.checkFormatSupport()` (odpowiedni
 | **SpartaDOS (SDFS)** | Tak | Tak | Tak | Tak | Tak | Tak (od 16 sekt., **128/256/512 B**, do 65535 sekt.) |
 | **LiteDOS-SE** | – | – | – | – | – | Brak wsparcia tworzenia nowych obrazów – wyłącznie odczyt/zapis/formatowanie istniejących dysków |
 | **CP/M 2.2 (Indus GT)** | Nie | Nie | Tak | Nie | Nie | Tak (64–1068 sekt., wyłącznie 256 B) |
+| **CP/M 2.2 (Atari 1090)** | Tak | Tak | Nie | Nie | Nie | Tak (102–1040 sekt., wyłącznie 128 B) |
 | **Brak (dysk niesformatowany)** | Tak | Tak | Tak | Tak | Tak | Tak (dowolna geometria) |
 
 Weryfikacja odbywa się przed utworzeniem obrazu, zarówno dla geometrii niestandardowej, jak i standardowych gęstości; przy niezgodnej kombinacji tworzenie dysku zostaje zablokowane wraz z komunikatem opisującym przyczynę. **Atari DOS 2.0S i Atari DOS 2.5 mają odrębne, ściślejsze ograniczenia niż DOS II+/D** – mimo że VTOC tych trzech systemów w gęstościach SD/DD bywa nie do odróżnienia, oryginalne wersje DOS 2.0S i DOS 2.5 nigdy nie były dystrybuowane poza wskazanymi gęstościami, więc okno tworzenia dysku i silnik formatujący odrzucają pozostałe kombinacje. **Dla geometrii niestandardowej instalacja plików systemowych (DOS.SYS / DUP.SYS) jest zawsze wyłączona** – gotowe szablony boot sektorów istnieją wyłącznie dla standardowych gęstości i na innej geometrii nie byłyby poprawnie ładowane.
@@ -204,6 +205,19 @@ Weryfikacja odbywa się przed utworzeniem obrazu, zarówno dla geometrii niestan
   - Obsługa atrybutu **Read-Only (R/O)** zapisywanego w najstarszym bicie pierwszego znaku rozszerzenia pliku.
 - **Wykrywanie Formatu**: Aplikacja rozpoznaje CP/M na dwa sposoby – po sygnaturze rozruchowej `$F3 $22 $55 $7F` w sektorze 1 (dokładnie ta, po której rozpoznaje go Altirra w `ATDiskMountImage`) lub, dla dysków bez tej sygnatury, po strukturalnej weryfikacji całego katalogu (poprawne numery użytkowników, drukowalne nazwy plików, liczniki rekordów w granicach 0–128, bloki alokacji w dopuszczalnym zakresie). Pusty, świeżo sformatowany dysk (cały katalog wypełniony bajtem $E5$) jest również poprawnie rozpoznawany.
 
+#### 8. CP/M 2.2 dla karty CP/M Atari 1090 (`CP/M 2.2 (Atari 1090)`)
+- **Przeznaczenie**: Dyskietki o sektorach 128-bajtowych (SD 720 lub MD 1040 sektorów) zapisywane przez kartę CP/M rozszerzenia **Atari 1090**, na której CP/M 2.2 pracuje na procesorze Z80. To ten sam system plików co w wariancie Indus GT, ale inaczej rozmieszczony na nośniku i **bez negacji bajtów** – dane leżą na dysku dokładnie tak, jak widzi je komputer.
+- **Źródło Parametrów**: Geometria pochodzi z tablicy DPB w BIOS-ie karty (sektor 28 dysku systemowego): `SPT = 26`, `BSH = 3`, `BLM = 7`, `EXM = 0`, `DSM = 118`, `DRM = 63`, `AL0 = $C0`, `CKS = 16`, `OFF = 3`. W tablicy DPH pole XLT wynosi 0, czyli **BIOS nie stosuje translacji (przeplotu) sektorów** – rekord CP/M odpowiada wprost jednemu sektorowi Atari, a adresowanie jest liniowe.
+- **Struktura Katalogu i Alokacji**:
+  - Sektory 1–78 to obszar systemowy (`OFF` = 3 ścieżki po `SPT` = 26 rekordów). Na dysku bootowalnym mieszczą się tam ładowacz Atari oraz CCP, BDOS i BIOS karty; na dysku z danymi obszar ten bywa wyzerowany.
+  - Katalog zajmuje sektory 79–94 (bloki alokacji 0–1, do 64 wpisów katalogowych / ekstentów po 32 bajty).
+  - Jednostka alokacji (blok) wynosi 1 KB, czyli 8 sektorów po 128 B; blok $b$ zaczyna się na sektorze fizycznym $79 + 8b$, a dane zaczynają się od bloku 2.
+  - Liczba bloków to **mniejsza** z dwóch wartości: limitu ogłoszonego przez DPB ($DSM + 1 = 119$) oraz pojemności nośnika $(N_{sec} - 78) / 8$ zaokrąglonej w dół. Dla dysku MD (1040 sektorów) wiążący jest DPB – 119 bloków zamiast 120 fizycznie mieszczących się na dyskietce; dla dysku SD (720 sektorów) wiążący jest nośnik – 80 bloków. Dzięki temu aplikacja nigdy nie przydziela bloku, którego nie wydałby prawdziwy system.
+  - Pozostałe reguły – kodowanie numeru ekstentu w polach EX/S2, wyliczanie rozmiaru pliku z najwyższego ekstentu, atrybut **Read-Only** w najstarszym bicie pierwszego znaku rozszerzenia, brak podkatalogów – są wspólne z wariantem Indus GT.
+- **Kontener**: Obrazy 1090 to zwykłe, bootowalne pliki `.ATR` i takie pozostają przy zapisie. W odróżnieniu od wariantu Indus GT aplikacja **nie** konwertuje ich do `.XFD`.
+- **Wykrywanie Formatu**: Wyłącznie przez strukturalną weryfikację katalogu w sektorach 79–94 (bez negacji bajtów) – tymi samymi regułami co w wariancie Indus GT. Sektor rozruchowy nie zawiera sygnatury nadającej się do rozpoznania: dyski z danymi w ogóle nie mają obszaru systemowego, a dyski systemowe zaczynają się od zwyczajnego ładowacza Atari.
+- **Ograniczenia**: Obsługiwane są wyłącznie nośniki 128-bajtowe. BIOS karty zawiera także tablice DPB dla dysków 256-bajtowych (`SPT = 36`, odpowiedniki DD i QD, w wariantach `OFF = 1` i `OFF = 3`), ale bez obrazu referencyjnego nie sposób zweryfikować mapowania rekordów na sektory, więc pozostają one nieobsługiwane. Aplikacja formatuje nowe dyski 1090, lecz **nie instaluje systemu CP/M** – tak utworzony dysk nie jest bootowalny. Formatowanie istniejącego dysku nie narusza sektorów 1–78, więc dysk systemowy zachowuje zdolność rozruchu.
+
 ---
 
 ### 2.5. Weryfikacja Alokacji, Niestandardowego Rozmiaru Dysku i Tryb "Read-Only"
@@ -275,6 +289,7 @@ Panel boczny posiada rozszerzoną szerokość **330px**, co zapewnia wygodny i p
    - `MyDOS 4.5x` – *Gdy planujesz używać podkatalogów*.
    - `Sparta DOS` – *Dla zaawansowanych środowisk SpartaDOS, także z sektorami 512 B*.
    - `CP/M 2.2 (Indus GT - DD 180 KB)` – *Dla stacji Indus GT z systemem CP/M 2.2*.
+   - `CP/M 2.2 (Atari 1090 - SD / MD)` – *Dla karty CP/M urządzenia Atari 1090; tworzony dysk jest pusty i niebootowalny, bo aplikacja nie instaluje systemu CP/M*.
    - `Brak (dysk niesformatowany)` – *Gdy potrzebny jest surowy obraz bez systemu plików, np. do dalszej obróbki w innym narzędziu*.
 3. Wybierz **Gęstość i Rozmiar Dysku**:
    - `SD` (90 KB), `MD` (130 KB), `DD` (180 KB), `QD` (368 KB), `720K` lub **`Niestandardowy`**.
@@ -394,7 +409,7 @@ Implementacje systemów plików **Atari DOS 2.0S**, **DOS 2.5**, **DOS II+/D** o
 - **Projekt:** Altirra – emulator komputerów Atari 8-bit
 - **Strona projektu:** [https://www.virtualdub.org/altirra.html](https://www.virtualdub.org/altirra.html)
 
-Kod źródłowy biblioteki **ATIO** emulatora Altirra (`diskfs.cpp`, `diskfsdos2.cpp`, `diskfssdx2.cpp`, `diskfscpm.cpp`) posłużył jako wzorzec przy odtworzeniu: dokładnego, stronicowanego modelu bitmapy VTOC MyDOS dla dysków powyżej 943 sektorów, dwuczęściowej mapy bitowej i licznika VTOC2 dla DOS 2.5, mapy bitowej i sygnatur rozpoznawania SpartaDOS SDFS (w tym wariantu z sektorami 512 B), systemu plików CP/M 2.2 dla Indus GT, zasad rozpoznawania formatów dysku (`ATDiskMountImage`) oraz mechanizmu walidacji spójności alokacji z trybem *Read-Only* (`ATDiskFSValidationReport`). Okno tworzenia dysku o geometrii niestandardowej odwzorowuje opcję *Custom* z altirrowego okna *Create New Disk* (`ATNewDiskDialog`), a ograniczenia geometrii Atari DOS 2.0S i DOS 2.5 odzwierciedlają logikę `IsCurrentFormatSupported()` z tego samego okna.
+Kod źródłowy biblioteki **ATIO** emulatora Altirra (`diskfs.cpp`, `diskfsdos2.cpp`, `diskfssdx2.cpp`, `diskfscpm.cpp`) posłużył jako wzorzec przy odtworzeniu: dokładnego, stronicowanego modelu bitmapy VTOC MyDOS dla dysków powyżej 943 sektorów, dwuczęściowej mapy bitowej i licznika VTOC2 dla DOS 2.5, mapy bitowej i sygnatur rozpoznawania SpartaDOS SDFS (w tym wariantu z sektorami 512 B), systemu plików CP/M 2.2 dla Indus GT (wariant dla karty Atari 1090 nie pochodzi z Altirry – ta go nie obsługuje), zasad rozpoznawania formatów dysku (`ATDiskMountImage`) oraz mechanizmu walidacji spójności alokacji z trybem *Read-Only* (`ATDiskFSValidationReport`). Okno tworzenia dysku o geometrii niestandardowej odwzorowuje opcję *Custom* z altirrowego okna *Create New Disk* (`ATNewDiskDialog`), a ograniczenia geometrii Atari DOS 2.0S i DOS 2.5 odzwierciedlają logikę `IsCurrentFormatSupported()` z tego samego okna.
 
 ### Mr Atari – LiteDOS-SE
 
