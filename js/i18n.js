@@ -201,11 +201,13 @@ var EN_DICT = {
     "Nowy Katalog": "New Directory",
     "Eksportuj wybrany plik": "Export the selected file",
     "Pobierz Plik": "Extract File",
+    "Pobierz zaznaczone pozycje w jednym archiwum ZIP": "Download the marked entries in a single ZIP archive",
+    "Pobierz ZIP": "Download ZIP",
     "Zmień nazwę pliku": "Rename the file",
     "Zmień Nazwę": "Rename",
     "Zablokuj / Odblokuj plik": "Lock / Unlock the file",
     "Zablokuj/Odblokuj": "Lock/Unlock",
-    "Ustaw atrybuty (A, H, P) w SpartaDOS / SDFS": "Set attributes (A, H, P) on SpartaDOS / SDFS",
+    "Ustaw atrybuty pliku lub wszystkich zaznaczonych plików": "Set attributes of the file or of every marked file",
     "Atrybuty": "Attributes",
     "Usuń plik z obrazu": "Delete the file from the image",
     "Usuń": "Delete",
@@ -214,6 +216,7 @@ var EN_DICT = {
     "Wyświetl katalog w trybie ATASCII": "Show the directory in ATASCII mode",
     "Katalog ATASCII": "ATASCII Directory",
     "Szukaj pliku...": "Search for a file...",
+    "Zaznacz lub odznacz wszystkie widoczne pozycje": "Mark or unmark every visible entry",
     "Nazwa Pliku": "File Name",
     "Sektory": "Sectors",
     "Rozmiar (B)": "Size (B)",
@@ -263,7 +266,9 @@ var EN_DICT = {
     "Nowy Podkatalog": "New Subdirectory",
     "Nazwa podkatalogu (8.3 ATASCII):": "Subdirectory name (8.3 ATASCII):",
     "Utwórz Katalog": "Create Directory",
-    "Atrybuty Pliku (SpartaDOS / SDFS)": "File Attributes (SpartaDOS / SDFS)",
+    "Atrybuty Plików": "File Attributes",
+    "Pole w stanie nieokreślonym oznacza, że zaznaczone pliki różnią się tym atrybutem — pozostawione tak, zostanie u każdego bez zmian.":
+        "A checkbox left indeterminate means the marked files disagree on that attribute - left that way, it stays unchanged on each of them.",
     "<strong>(P) Protected / Locked</strong> – Ochrona przed modyfikacją i skasowaniem (Bit 0)": "<strong>(P) Protected / Locked</strong> – Protection against modification and deletion (Bit 0)",
     "<strong>(H) Hidden</strong> – Ukryty plik w katalogu (Bit 1)": "<strong>(H) Hidden</strong> – File hidden in the directory (Bit 1)",
     "<strong>(A) Archive</strong> – Flaga archiwum / zmiany (Bit 2)": "<strong>(A) Archive</strong> – Archive / modified flag (Bit 2)",
@@ -348,19 +353,30 @@ var EN_DICT = {
         "The resulting image size is shown below the fields. If the chosen file system does not support the given geometry, a red message explaining why appears and the <strong>Create Disk</strong> button is disabled – the allowed combinations are listed in the table in section 2.",
     "<strong>Uwaga:</strong> dla geometrii niestandardowej instalacja plików systemowych jest <strong>zawsze wyłączona</strong>. Gotowe pliki DOS.SYS i DUP.SYS istnieją wyłącznie w wariantach dla gęstości standardowych i na dysku o innej geometrii nie byłyby poprawnie ładowane.":
         "<strong>Note:</strong> for a custom geometry, installing system files is <strong>always disabled</strong>. The ready-made DOS.SYS and DUP.SYS files only exist for standard densities and would not load correctly on a disk with a different geometry.",
+    "Dwa Sposoby Wskazywania Plików": "Two Ways of Picking Files",
+    "Tabela plików rozróżnia <strong>wskazanie kliknięciem</strong> i <strong>zaznaczenie polami wyboru</strong> w pierwszej kolumnie. To dwa niezależne mechanizmy, a każdy przycisk korzysta tylko z jednego z nich.":
+        "The file table distinguishes <strong>picking by click</strong> from <strong>marking with the checkboxes</strong> in the first column. These are two independent mechanisms, and each button uses only one of them.",
+    "<strong>Kliknięcie wiersza</strong> podświetla dokładnie jedną pozycję. Działają na niej <strong>Zmień Nazwę</strong>, <strong>Usuń</strong>, <strong>Podgląd / Hex</strong>, <strong>Zablokuj/Odblokuj</strong> oraz <strong>Pobierz Plik</strong>. Pola wyboru nie mają na te przyciski żadnego wpływu.":
+        "<strong>Clicking a row</strong> highlights exactly one entry. <strong>Rename</strong>, <strong>Delete</strong>, <strong>Preview / Hex</strong>, <strong>Lock/Unlock</strong> and <strong>Extract File</strong> all act on it. The checkboxes have no effect on these buttons.",
+    "<strong>Pola wyboru</strong> tworzą zaznaczenie zbiorcze, na którym działa <strong>Pobierz ZIP</strong>. Pole w nagłówku tabeli zaznacza i odznacza wszystkie widoczne pozycje – przy włączonej wyszukiwarce tylko te pasujące do frazy.":
+        "<strong>The checkboxes</strong> build a bulk selection, which <strong>Download ZIP</strong> acts on. The checkbox in the table header marks and unmarks every visible entry – with the search box in use, only the rows matching the phrase.",
+    "<strong>Atrybuty</strong> to jedyny przycisk korzystający z obu mechanizmów: gdy cokolwiek jest odhaczone polami wyboru, działa na całym tym zaznaczeniu, a gdy nie – na pojedynczej pozycji wskazanej kliknięciem.":
+        "<strong>Attributes</strong> is the only button that uses both: when anything is checked, it acts on that whole selection, and when nothing is – on the single entry picked by click.",
+    "Zaznaczenie polami wyboru przeżywa filtrowanie wyszukiwarką i przechodzenie między katalogami. Znika przy wczytaniu innego obrazu, założeniu nowego dysku i formatowaniu.":
+        "A checkbox selection survives search filtering and moving between directories. It is dropped when another image is loaded, a new disk is created, or the disk is formatted.",
     "Wgrywanie, Modyfikacja i Usuwanie Plików": "Uploading, Modifying and Deleting Files",
     "<strong>Dodawanie pliku z PC:</strong> Kliknij <strong>Dodaj Plik</strong> i wybierz plik z dysku komputera (np. <code>.XEX</code>, <code>.COM</code>, <code>.TXT</code>). Nazwa zostanie automatycznie przekonwertowana do standardu 8.3 ATASCII.":
         "<strong>Adding a file from PC:</strong> Click <strong>Add File</strong> and choose a file from your computer (e.g. <code>.XEX</code>, <code>.COM</code>, <code>.TXT</code>). The name will be automatically converted to the 8.3 ATASCII standard.",
-    "<strong>Zablokowanie pliku:</strong> Zaznacz plik na liście i kliknij <strong>Zablokuj/Odblokuj</strong>. Plik zyska status zablokowanego przed skasowaniem.":
-        "<strong>Locking a file:</strong> Select the file in the list and click <strong>Lock/Unlock</strong>. The file will become protected against deletion.",
-    "<strong>Atrybuty SpartaDOS:</strong> Dla dysków SDFS przycisk <strong>Edytuj Atrybuty</strong> pozwala ustawić znaczniki <em>P</em> (Protected), <em>H</em> (Hidden) i <em>A</em> (Archive). Aktywne atrybuty widoczne są jako plakietki na liście plików.":
-        "<strong>SpartaDOS attributes:</strong> For SDFS disks, the <strong>Edit Attributes</strong> button lets you set the <em>P</em> (Protected), <em>H</em> (Hidden) and <em>A</em> (Archive) flags. Active attributes are shown as badges in the file list.",
-    "<strong>Zmiana nazwy:</strong> Wybierz plik, kliknij <strong>Zmień Nazwę</strong> i podaj nową nazwę zgodną z formatem 8.3.":
-        "<strong>Renaming:</strong> Select a file, click <strong>Rename</strong> and enter a new name matching the 8.3 format.",
-    "<strong>Usuwanie:</strong> Zaznacz plik lub pusty podkatalog i kliknij <strong>Usuń</strong>.":
-        "<strong>Deleting:</strong> Select a file or an empty subdirectory and click <strong>Delete</strong>.",
-    "<strong>Eksport:</strong> Przycisk <strong>Wypakuj</strong> zapisuje zaznaczony plik na dysk komputera, a <strong>Zapisz Dysk</strong> pobiera cały zmodyfikowany obraz.":
-        "<strong>Export:</strong> The <strong>Extract</strong> button saves the selected file to your computer, and <strong>Save Disk</strong> downloads the whole modified image.",
+    "<strong>Zablokowanie pliku:</strong> Kliknij plik na liście i użyj <strong>Zablokuj/Odblokuj</strong>. Przycisk przełącza ochronę <em>jednej</em> pozycji, tej wskazanej kliknięciem. Aby zmienić blokadę wielu plikom naraz, odhacz je polami wyboru i użyj przycisku <strong>Atrybuty</strong>.":
+        "<strong>Locking a file:</strong> Click the file in the list and use <strong>Lock/Unlock</strong>. The button toggles protection on <em>one</em> entry, the one picked by click. To change the lock on many files at once, check them and use the <strong>Attributes</strong> button.",
+    "<strong>Atrybuty:</strong> Przycisk <strong>Atrybuty</strong> otwiera okno ustawień. Na dyskach SpartaDOS SDFS dostępne są znaczniki <em>P</em> (Protected), <em>H</em> (Hidden) i <em>A</em> (Archive), a w pozostałych systemach plików – wyłącznie ochrona przed zapisem. Przy wielu odhaczonych plikach pole atrybutu, którym te pliki się różnią, pokazuje stan nieokreślony: pozostawione tak, nie zmienia niczego, a kliknięcia ustawiają atrybut albo zdejmują go wszystkim naraz. Aktywne atrybuty widoczne są jako plakietki na liście plików.":
+        "<strong>Attributes:</strong> The <strong>Attributes</strong> button opens the settings dialog. SpartaDOS SDFS disks offer the <em>P</em> (Protected), <em>H</em> (Hidden) and <em>A</em> (Archive) flags; every other file system offers write protection alone. With several files checked, an attribute the files disagree on shows as indeterminate: left that way it changes nothing, while clicking sets or clears it on all of them at once. Active attributes are shown as badges in the file list.",
+    "<strong>Zmiana nazwy:</strong> Kliknij plik, wybierz <strong>Zmień Nazwę</strong> i podaj nową nazwę zgodną z formatem 8.3. Operacja dotyczy zawsze jednej pozycji, niezależnie od tego, co jest odhaczone polami wyboru.":
+        "<strong>Renaming:</strong> Click a file, choose <strong>Rename</strong> and enter a new name matching the 8.3 format. The operation always applies to one entry, whatever the checkboxes hold.",
+    "<strong>Usuwanie:</strong> Kliknij plik lub pusty podkatalog i użyj <strong>Usuń</strong>. Tak jak zmiana nazwy, dotyczy wyłącznie pozycji wskazanej kliknięciem – masowego kasowania nie ma.":
+        "<strong>Deleting:</strong> Click a file or an empty subdirectory and use <strong>Delete</strong>. Like renaming, it applies only to the entry picked by click – there is no bulk deletion.",
+    "<strong>Eksport:</strong> <strong>Pobierz Plik</strong> zapisuje na dysku komputera pojedynczy plik wskazany kliknięciem. <strong>Pobierz ZIP</strong> pakuje do jednego archiwum wszystko, co odhaczono polami wyboru – odhaczony katalog trafia tam wraz z całą zawartością. <strong>Zapisz Dysk</strong> pobiera cały zmodyfikowany obraz.":
+        "<strong>Export:</strong> <strong>Extract File</strong> saves the single file picked by click to your computer. <strong>Download ZIP</strong> packs everything checked into one archive – a checked directory goes in with all of its contents. <strong>Save Disk</strong> downloads the whole modified image.",
     "Praca z Podkatalogami (MyDOS / SpartaDOS)": "Working with Subdirectories (MyDOS / SpartaDOS)",
     "Na dyskach sformatowanych w MyDOS lub SpartaDOS kliknij <strong>Nowy Katalog</strong> i podaj nazwę.":
         "On disks formatted as MyDOS or SpartaDOS, click <strong>New Directory</strong> and enter a name.",
@@ -464,13 +480,24 @@ var EN_DICT = {
     "Błąd tworzenia podkatalogu: {0}": "Error creating subdirectory: {0}",
     "Pobrano plik: {0}": "Downloaded file: {0}",
     "Błąd pobierania: {0}": "Download error: {0}",
+    "Nie ma czego spakować: zaznaczone katalogi są puste.": "Nothing to archive: the marked directories are empty.",
+    "Nie udało się odczytać żadnej z {0} zaznaczonych pozycji (szczegóły w konsoli).":
+        "None of the {0} marked entries could be read (details in the console).",
+    "Spakowano {0} plików do {1}.": "Archived {0} files into {1}.",
+    "Spakowano {0} plików do {1}; pominięto {2} nieczytelnych (szczegóły w konsoli).":
+        "Archived {0} files into {1}; skipped {2} unreadable ones (details in the console).",
+    "Błąd pakowania ZIP: {0}": "ZIP packing error: {0}",
     "Czy na pewno chcesz usunąć plik '{0}'?": "Are you sure you want to delete the file '{0}'?",
     "Usunięto plik {0}": "Deleted file {0}",
     "Błąd usuwania: {0}": "Deletion error: {0}",
     "Zmieniono atrybuty pliku {0}": "Changed attributes of file {0}",
     "Błąd zmiany atrybutów: {0}": "Error changing attributes: {0}",
     "Plik: {0}": "File: {0}",
+    "Zaznaczone pliki: {0}": "Marked files: {0}",
     "Zaktualizowano atrybuty pliku {0}": "Updated attributes of file {0}",
+    "Zaktualizowano atrybuty {0} plików.": "Updated attributes of {0} files.",
+    "Zmieniono atrybuty {0} plików, {1} pominięto (szczegóły w konsoli).":
+        "Changed attributes of {0} files, skipped {1} (details in the console).",
     "Błąd zapisu atrybutów: {0}": "Error saving attributes: {0}",
     "Zmieniono nazwę na: {0}": "Renamed to: {0}",
     "Błąd zmiany nazwy: {0}": "Rename error: {0}",

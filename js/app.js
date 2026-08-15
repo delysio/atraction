@@ -24,6 +24,41 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedFileObj = null;
     let activeDirPath = '';
 
+    // Checkbox marks, kept apart from selectedFileObj: that one still drives
+    // rename, delete and preview, which act on exactly one entry.
+    //
+    // getDirectory() rebuilds its file objects on every call, so a mark cannot
+    // hold a reference - the key is the name within the directory it was made
+    // in. Marks survive re-renders (the search box re-renders on every
+    // keystroke) and are dropped when the listing itself changes underneath.
+    const markedFiles = new Set();
+    const markKey = (file) => `${activeDirPath}|${file.fullName}`;
+
+    function clearMarks() {
+        markedFiles.clear();
+    }
+
+    /**
+     * Marked entries of the current view, in the order they are listed.
+     * @returns {Array<Object>}
+     */
+    function getMarkedFiles() {
+        return currentFiles.filter(f => markedFiles.has(markKey(f)));
+    }
+
+    /**
+     * Drives the header checkbox from the marks of the current view: ticked
+     * when every visible entry is marked, indeterminate when only some are.
+     */
+    function syncSelectAllCheckbox() {
+        if (!chkSelectAll) return;
+        const visible = currentFiles.length;
+        const marked = getMarkedFiles().length;
+        chkSelectAll.disabled = visible === 0;
+        chkSelectAll.checked = visible > 0 && marked === visible;
+        chkSelectAll.indeterminate = marked > 0 && marked < visible;
+    }
+
     // DOM Elements
     const btnNewDisk = document.getElementById('btnNewDisk');
     const btnOpenDisk = document.getElementById('btnOpenDisk');
@@ -35,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAddFile = document.getElementById('btnAddFile');
     const btnCreateDir = document.getElementById('btnCreateDir');
     const btnExtractFile = document.getElementById('btnExtractFile');
+    const btnExtractSelected = document.getElementById('btnExtractSelected');
     const btnRenameFile = document.getElementById('btnRenameFile');
     const btnToggleLock = document.getElementById('btnToggleLock');
     const btnEditAttributes = document.getElementById('btnEditAttributes');
@@ -42,9 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPreviewFile = document.getElementById('btnPreviewFile');
     const btnDirAtascii = document.getElementById('btnDirAtascii');
 
-    // Modal Attributes Elements (SpartaDOS SDFS)
+    // Modal Attributes Elements
     const modalAttributes = document.getElementById('modalAttributes');
     const attrFileNameLabel = document.getElementById('attrFileNameLabel');
+    const attrMixedHint = document.getElementById('attrMixedHint');
+    const attrRowHidden = document.getElementById('attrRowHidden');
+    const attrRowArchive = document.getElementById('attrRowArchive');
     const chkAttrProtect = document.getElementById('chkAttrProtect');
     const chkAttrHidden = document.getElementById('chkAttrHidden');
     const chkAttrArchive = document.getElementById('chkAttrArchive');
@@ -55,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dirAtasciiFormatted = document.getElementById('dirAtasciiFormatted');
 
     const searchInput = document.getElementById('searchInput');
+    const chkSelectAll = document.getElementById('chkSelectAll');
     const fileTableBody = document.getElementById('fileTableBody');
     const emptyState = document.getElementById('emptyState');
     const dirTree = document.getElementById('dirTree');
@@ -211,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnAddFile.disabled = (diskManager.getDiskStats().isReadOnly === true);
 
             activeDirPath = '';
+            clearMarks();
             refreshUI();
             showToast(T('Wczytano obraz ATR: {0} ({1})', fileName, diskManager.dosType), 'success');
         } catch (err) {
@@ -375,6 +416,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (displayFiles.length === 0 && !activeDirPath) {
             emptyState.style.display = 'flex';
             statusLeft.textContent = T('Pusty katalog ({0}).', diskManager.dosType);
+            syncSelectAllCheckbox();
+            updateToolbarButtonState();
             return;
         }
 
@@ -387,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const upTr = document.createElement('tr');
             upTr.style.cursor = 'pointer';
             upTr.innerHTML = `
-                <td colspan="6" style="color: var(--color-primary); font-weight: 600;">
+                <td colspan="7" style="color: var(--color-primary); font-weight: 600;">
                     <div class="file-name-cell">
                         <span class="file-icon file-icon-dir" style="margin-right: 6px;">
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
@@ -437,6 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!attrBadge) attrBadge = `<span style="color: var(--text-muted);">-</span>`;
 
             tr.innerHTML = `
+                <td class="col-check"><input type="checkbox" class="row-check"></td>
                 <td><div class="file-name-cell">${iconHtml}<span>${file.fullName}</span></div></td>
                 <td>${file.sectorCount || 0}</td>
                 <td>${file.sizeBytes !== undefined ? file.sizeBytes.toLocaleString() : '-'}</td>
@@ -454,9 +498,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             `;
 
+            // Checkbox mark, restored from the set so it survives re-renders
+            const rowCheck = tr.querySelector('.row-check');
+            rowCheck.checked = markedFiles.has(markKey(file));
+            rowCheck.addEventListener('change', () => {
+                if (rowCheck.checked) markedFiles.add(markKey(file));
+                else markedFiles.delete(markKey(file));
+                syncSelectAllCheckbox();
+                updateToolbarButtonState();
+            });
+
             // Selection Event
             tr.addEventListener('click', (e) => {
                 if (e.target.closest('.file-actions')) return;
+                if (e.target.closest('.row-check')) return;
                 fileTableBody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
                 tr.classList.add('selected');
                 selectedFileObj = file;
@@ -485,6 +540,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             fileTableBody.appendChild(tr);
         });
+
+        syncSelectAllCheckbox();
+        updateToolbarButtonState();
     }
 
     function findSubDirObject(files, path) {
@@ -503,8 +561,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasSelection = selectedFileObj !== null;
         const isDir = hasSelection && selectedFileObj.isDir === true;
         const canCreateDir = diskManager.atr && (diskManager.dosType === 'MyDOS' || diskManager.dosType === 'SpartaDOS');
-        const isSparta = diskManager.atr && (diskManager.dosType === 'SpartaDOS' || diskManager.dosType === 'SDFS');
         const isRO = diskManager.getDiskStats().isReadOnly === true;
+
+        // Marks drive the bulk actions; a single click-selection still drives
+        // the rest. Attributes work on whichever of the two is in play, so it
+        // needs at least one non-directory entry on either side.
+        const marked = getMarkedFiles();
+        const markedFileCount = marked.filter(f => !f.isDir).length;
+        const hasAttrTarget = markedFileCount > 0 || (hasSelection && !isDir);
 
         btnCreateDir.disabled = !canCreateDir || isRO;
         btnExtractFile.disabled = !hasSelection || isDir;
@@ -513,14 +577,13 @@ document.addEventListener('DOMContentLoaded', () => {
         btnDeleteFile.disabled = !hasSelection || isRO;
         btnPreviewFile.disabled = !hasSelection || isDir;
         if (btnDirAtascii) btnDirAtascii.disabled = !diskManager.atr;
+        if (btnExtractSelected) btnExtractSelected.disabled = marked.length === 0;
 
         if (btnEditAttributes) {
-            if (isSparta) {
-                btnEditAttributes.style.display = 'inline-flex';
-                btnEditAttributes.disabled = !hasSelection || isDir || isRO;
-            } else {
-                btnEditAttributes.style.display = 'none';
-            }
+            // Every filesystem here carries a read-only bit, so the dialog is
+            // useful everywhere; only SpartaDOS adds Hidden and Archive to it.
+            btnEditAttributes.style.display = 'inline-flex';
+            btnEditAttributes.disabled = !hasAttrTarget || isRO;
         }
     }
 
@@ -528,6 +591,21 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', () => {
         renderFileTable();
     });
+
+    // Header checkbox: acts on what is on screen, so a search filter narrows
+    // its reach to the matching rows rather than the whole directory.
+    if (chkSelectAll) {
+        chkSelectAll.addEventListener('change', () => {
+            const select = chkSelectAll.checked;
+            currentFiles.forEach(f => {
+                if (select) markedFiles.add(markKey(f));
+                else markedFiles.delete(markKey(f));
+            });
+            fileTableBody.querySelectorAll('.row-check').forEach(cb => { cb.checked = select; });
+            syncSelectAllCheckbox();
+            updateToolbarButtonState();
+        });
+    }
 
     // -------------------------------------------------------------
     // Open & Save Disk Actions
@@ -800,6 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnFormatDisk.disabled = false;
             btnAddFile.disabled = false;
             activeDirPath = '';
+            clearMarks();
             refreshUI();
             showToast(T(`Utworzono nowy dysk {0}`, filename), 'success');
         } catch (err) {
@@ -813,6 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const dosType = diskManager.dosType.includes('LiteDOS') ? 'LiteDOS' : (diskManager.dosType.includes('MyDOS') ? 'MyDOS' : (diskManager.dosType.includes('Sparta') ? 'SpartaDOS' : (diskManager.dosType.includes('CP/M') || diskManager.dosType.includes('CPM') ? (diskManager.dosType.includes('1090') ? 'CPM1090' : 'CPM') : (diskManager.dosType.includes('2.5') ? 'DOS2.5' : 'Atari DOS'))));
                 diskManager.format(dosType);
+                clearMarks();
                 refreshUI();
                 showToast(T("Dysk został pomyślnie sformatowany."), "success");
             } catch (err) {
@@ -1036,12 +1116,98 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     btnExtractFile.addEventListener('click', extractSelectedFile);
 
+    /**
+     * Copies one entry into the archive, descending into subdirectories.
+     * Paths are relative to the current view, so what lands in the archive is
+     * what the user sees on the list.
+     *
+     * @param {ZipWriter} zip
+     * @param {Object} file
+     * @param {string} prefix Path built so far, '' or ending with '/'
+     * @param {Object} report Counters and the list of entries that failed
+     */
+    function addEntryToZip(zip, file, prefix, report) {
+        const segment = ZipWriter.sanitizeSegment(file.fullName);
+
+        if (file.isDir) {
+            // The directory tree carries deleted entries too; the listing hides
+            // them, and their sectors may already belong to somebody else.
+            const children = (file.subFiles || []).filter(f => !f.isDeleted);
+            if (children.length === 0) {
+                // Nothing would record an empty directory otherwise - a
+                // directory that holds files is implied by their paths.
+                zip.addDirectory(prefix + segment, file.date);
+                return;
+            }
+            for (const child of children) addEntryToZip(zip, child, prefix + segment + '/', report);
+            return;
+        }
+
+        try {
+            const bytes = diskManager.extractFile(file, 'raw');
+            zip.addFile(prefix + segment, bytes, file.date);
+            report.files++;
+        } catch (err) {
+            // One unreadable file must not cost the user the whole archive.
+            report.failed.push(`${prefix}${segment}: ${err.message}`);
+        }
+    }
+
+    function extractMarkedToZip() {
+        const marked = getMarkedFiles();
+        if (marked.length === 0) return;
+
+        try {
+            const zip = new ZipWriter();
+            const report = { files: 0, failed: [] };
+            for (const file of marked) addEntryToZip(zip, file, '', report);
+
+            if (zip.length === 0) {
+                // Empty selection and a selection nothing could be read from
+                // are two different problems, and only one is the user's doing.
+                if (report.failed.length > 0) {
+                    console.warn('ATRaction: pominięte pozycje eksportu ZIP\n' + report.failed.join('\n'));
+                    showToast(T('Nie udało się odczytać żadnej z {0} zaznaczonych pozycji (szczegóły w konsoli).',
+                        report.failed.length), 'error');
+                } else {
+                    showToast(T('Nie ma czego spakować: zaznaczone katalogi są puste.'), 'info');
+                }
+                return;
+            }
+
+            // The prefix keeps the archive apart from the disk image itself,
+            // which the Save Disk button names by the same density/DOS pattern.
+            const zipName = 'files_' + getFormattedATRFilename().replace(/\.(atr|xfd)$/i, '') + '.zip';
+            const blob = new Blob([zip.build()], { type: 'application/zip' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = zipName;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            if (report.failed.length > 0) {
+                console.warn('ATRaction: pominięte pozycje eksportu ZIP\n' + report.failed.join('\n'));
+                showToast(T('Spakowano {0} plików do {1}; pominięto {2} nieczytelnych (szczegóły w konsoli).',
+                    report.files, zipName, report.failed.length), 'error');
+            } else {
+                showToast(T('Spakowano {0} plików do {1}.', report.files, zipName), 'success');
+            }
+        } catch (err) {
+            showToast(T('Błąd pakowania ZIP: {0}', err.message), 'error');
+        }
+    }
+    if (btnExtractSelected) btnExtractSelected.addEventListener('click', extractMarkedToZip);
+
     btnDeleteFile.addEventListener('click', () => {
         if (!selectedFileObj) return;
         const fileName = selectedFileObj.fullName;
         if (confirm(T(`Czy na pewno chcesz usunąć plik '{0}'?`, fileName))) {
             try {
                 diskManager.deleteFile(selectedFileObj);
+                // The name is gone; leaving its key behind would silently mark
+                // any future file that reuses it.
+                markedFiles.delete(markKey(selectedFileObj));
                 refreshUI();
                 showToast(T(`Usunięto plik {0}`, fileName), 'success');
             } catch (err) {
@@ -1063,32 +1229,99 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    /**
+     * Files the attribute dialog works on: the marked ones when there are any,
+     * otherwise the single click-selected entry. Directories are left out -
+     * the dialog edits file attributes only.
+     * @returns {Array<Object>}
+     */
+    function getAttributeTargets() {
+        const marked = getMarkedFiles().filter(f => !f.isDir);
+        if (marked.length > 0) return marked;
+        if (selectedFileObj && !selectedFileObj.isDir) return [selectedFileObj];
+        return [];
+    }
+
+    function isSpartaFilesystem() {
+        return diskManager.dosType === 'SpartaDOS' || diskManager.dosType === 'SDFS';
+    }
+
+    // Three states, not two: true and false where every target agrees, null
+    // where they differ - which the checkbox shows as indeterminate and the
+    // save step reads as "leave this attribute alone".
+    const triState = (files, pick) => {
+        const first = !!pick(files[0]);
+        return files.every(f => !!pick(f) === first) ? first : null;
+    };
+    const setTriCheckbox = (chk, value) => {
+        chk.indeterminate = (value === null);
+        chk.checked = (value === true);
+    };
+    const readTriCheckbox = (chk) => (chk.indeterminate ? undefined : chk.checked);
+
     if (btnEditAttributes) {
         btnEditAttributes.addEventListener('click', () => {
-            if (!selectedFileObj || selectedFileObj.isDir) return;
-            attrFileNameLabel.textContent = T(`Plik: {0}`, selectedFileObj.fullName);
-            chkAttrProtect.checked = !!(selectedFileObj.isProtected || selectedFileObj.isLocked);
-            chkAttrHidden.checked = !!selectedFileObj.isHidden;
-            chkAttrArchive.checked = !!selectedFileObj.isArchived;
+            const targets = getAttributeTargets();
+            if (targets.length === 0) return;
+            const sparta = isSpartaFilesystem();
+
+            attrFileNameLabel.textContent = targets.length === 1
+                ? T(`Plik: {0}`, targets[0].fullName)
+                : T(`Zaznaczone pliki: {0}`, targets.length);
+            attrMixedHint.style.display = targets.length > 1 ? 'block' : 'none';
+
+            // Only SDFS carries Hidden and Archive; everywhere else the
+            // read-only bit is the whole attribute set.
+            attrRowHidden.style.display = sparta ? 'flex' : 'none';
+            attrRowArchive.style.display = sparta ? 'flex' : 'none';
+
+            setTriCheckbox(chkAttrProtect, triState(targets, f => f.isProtected || f.isLocked));
+            setTriCheckbox(chkAttrHidden, triState(targets, f => f.isHidden));
+            setTriCheckbox(chkAttrArchive, triState(targets, f => f.isArchived));
             openModal(modalAttributes);
         });
     }
 
     if (btnSaveAttributesConfirm) {
         btnSaveAttributesConfirm.addEventListener('click', () => {
-            if (!selectedFileObj || selectedFileObj.isDir) return;
-            const fileName = selectedFileObj.fullName;
-            try {
-                diskManager.setAttributes(selectedFileObj, {
-                    protected: chkAttrProtect.checked,
-                    hidden: chkAttrHidden.checked,
-                    archived: chkAttrArchive.checked
-                });
-                closeModal(modalAttributes);
-                refreshUI();
-                showToast(T(`Zaktualizowano atrybuty pliku {0}`, fileName), 'success');
-            } catch (err) {
-                showToast(T(`Błąd zapisu atrybutów: {0}`, err.message), 'error');
+            const targets = getAttributeTargets();
+            if (targets.length === 0) return;
+            const sparta = isSpartaFilesystem();
+
+            const attrs = { protected: readTriCheckbox(chkAttrProtect) };
+            if (sparta) {
+                attrs.hidden = readTriCheckbox(chkAttrHidden);
+                attrs.archived = readTriCheckbox(chkAttrArchive);
+            }
+
+            const failed = [];
+            let changed = 0;
+            for (const file of targets) {
+                try {
+                    if (sparta) {
+                        diskManager.setAttributes(file, attrs);
+                    } else if (attrs.protected !== undefined) {
+                        // Atari DOS 2, MyDOS and LiteDOS expose the bit through
+                        // setLock; only SpartaDOS has a full attribute setter.
+                        diskManager.setLock(file, attrs.protected);
+                    }
+                    changed++;
+                } catch (err) {
+                    failed.push(`${file.fullName}: ${err.message}`);
+                }
+            }
+
+            closeModal(modalAttributes);
+            refreshUI();
+
+            if (failed.length > 0) {
+                console.warn('ATRaction: nieudane zmiany atrybutów\n' + failed.join('\n'));
+                showToast(T(`Zmieniono atrybuty {0} plików, {1} pominięto (szczegóły w konsoli).`,
+                    changed, failed.length), 'error');
+            } else if (targets.length === 1) {
+                showToast(T(`Zaktualizowano atrybuty pliku {0}`, targets[0].fullName), 'success');
+            } else {
+                showToast(T(`Zaktualizowano atrybuty {0} plików.`, changed), 'success');
             }
         });
     }
@@ -1173,7 +1406,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!newName) return;
 
         try {
+            const oldKey = markKey(selectedFileObj);
             diskManager.renameFile(selectedFileObj, newName);
+            markedFiles.delete(oldKey);
             closeModal(modalRename);
             refreshUI();
             showToast(T(`Zmieniono nazwę na: {0}`, newName), 'success');

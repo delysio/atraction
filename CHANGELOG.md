@@ -9,7 +9,60 @@ commita.
 
 ---
 
-## 2026-08-14
+## 2026-08-15
+
+### Dodane
+
+- Pola wyboru w pierwszej kolumnie tabeli plików pozwalają zaznaczyć wiele
+  pozycji naraz. Zaznaczenie zbiorcze jest niezależne od dotychczasowego
+  wskazania kliknięciem, które nadal obsługuje zmianę nazwy, usunięcie, podgląd
+  oraz przycisk blokady — dzięki temu operacje jednoplikowe działają bez zmian.
+  Rozdział obu mechanizmów, przycisk po przycisku, opisuje instrukcja w punkcie
+  4 oraz `README.md`. Pole w
+  nagłówku tabeli zaznacza i odznacza wszystkie widoczne pozycje, więc przy
+  włączonej wyszukiwarce obejmuje tylko wiersze pasujące do frazy.
+- Pobieranie zaznaczonych pozycji do jednego archiwum ZIP. Zaznaczony katalog
+  trafia do archiwum z całą zawartością, na ścieżce liczonej względem
+  bieżącego widoku; puste katalogi zachowują się jako osobne wpisy. Nazwy
+  atarowskie są oczyszczane ze znaków niedozwolonych w ścieżkach Windows —
+  ukośnik w nazwie nie utworzy fałszywego poziomu katalogu, a nazwa urządzenia
+  (`CON`, `AUX`) nie zablokuje rozpakowania. Pliki SpartaDOS zachowują datę.
+  Pojedynczy plik nieczytelny nie przerywa pakowania: reszta archiwum powstaje,
+  a pominięte pozycje trafiają do konsoli przeglądarki. Nazwa archiwum powstaje
+  z przedrostka `files_` oraz wzorca gęstości i systemu plików, tego samego,
+  którym nazywany jest zapisywany obraz (np. `files_SD_D20.zip`). Archiwum
+  powstaje bez kompresji, własnym kodem — projekt nadal nie ma żadnej
+  zależności zewnętrznej.
+- Masowa zmiana atrybutów zaznaczonych plików. Okno atrybutów działa teraz na
+  wszystkich systemach plików, a nie tylko na SpartaDOS: tam gdzie jedynym
+  atrybutem jest ochrona przed zapisem, pola `H` i `A` są ukrywane. Przy wielu
+  plikach pole atrybutu, którym pliki się różnią, pokazuje stan nieokreślony —
+  pozostawione tak, zostawia atrybut u każdego pliku bez zmian, a kliknięcia
+  ustawiają go albo zdejmują wszystkim naraz.
+
+### Poprawione
+
+- Blokada pliku działa w LiteDOS. Moduł nie miał metody `setLock`, której
+  szuka silnik, więc przycisk blokady na dysku LiteDOS kończył się komunikatem
+  „Blokowanie plików nie jest obsługiwane”. Przy okazji `setAttributes`
+  przyjmuje tam nazwę atrybutu w postaci używanej przez interfejs.
+- Cykl w drzewie katalogów MyDOS i SpartaDOS nie wywraca już aplikacji.
+  Hierarchia katalogów czytana jest rekurencyjnie, a zabezpieczenia przed
+  powtórzeniem obejmowały tylko jeden poziom: MyDOS pilnował łańcucha sektorów
+  pojedynczego katalogu, SpartaDOS łańcucha map sektorów, ale nic nie pilnowało
+  zejść w głąb. Uszkodzony obraz, w którym wpis podkatalogu wskazuje z powrotem
+  na katalog nadrzędny lub na katalog główny, zapętlał odczyt aż do
+  przepełnienia stosu. Ponieważ katalog czytany jest już przy wczytywaniu
+  obrazu, taki dysk nie dawał się w ogóle otworzyć — kończyło się komunikatem
+  „Maximum call stack size exceeded”. Teraz każdy katalog rozwijany jest
+  najwyżej raz na jedno przejście, więc praca jest ograniczona rozmiarem dysku,
+  a katalog domykający cykl pokazuje się jako pusty. Na zbiorze 227 obrazów
+  testowych zabezpieczenie nie odpaliło ani razu, więc odczyt zdrowych dysków
+  pozostaje bez zmian.
+
+---
+
+## 2026-08-14 — `474170f`
 
 ### Poprawione
 

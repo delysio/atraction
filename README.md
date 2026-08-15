@@ -254,8 +254,26 @@ Reguły walidacji zostały odtworzone na podstawie kodu źródłowego biblioteki
 Interfejs użytkownika składa się z 4 głównych sekcji:
 - **Pasek Akcji Głównych (Header)**: Pozwala na otwieranie obrazów `.ATR`/`.XFD`, tworzenie nowych dysków, zapis zmodyfikowanych obrazów oraz otwarcie okna **Instrukcja**.
 - **Panel Boczny (Sidebar)**: Wyświetla parametry dysku (gęstość, wolne sektory, pasek zajętości, ostrzeżenia i stan Read-Only) oraz drzewo podkatalogów (dla MyDOS / SpartaDOS).
-- **Pasek Narzędziowy Tabeli (Toolbar)**: Udostępnia przyciski operacji na plikach (dodawanie, zmiana nazwy, usuwanie, podgląd, pobieranie, zmiana blokady, edycja atrybutów SpartaDOS, podgląd w ATASCII).
-- **Tabela Plików (Main Workspace)**: Prezentuje listę plików i katalogów wraz z ich rozmiarem, sektorami startowymi, atrybutami oraz akcjami podglądu i pobierania.
+- **Pasek Narzędziowy Tabeli (Toolbar)**: Udostępnia przyciski operacji na plikach (dodawanie, zmiana nazwy, usuwanie, podgląd, pobieranie pojedyncze i zbiorcze w ZIP, zmiana blokady, edycja atrybutów, podgląd w ATASCII).
+- **Tabela Plików (Main Workspace)**: Prezentuje listę plików i katalogów wraz z ich rozmiarem, sektorami startowymi, atrybutami oraz akcjami podglądu i pobierania. Pierwsza kolumna zawiera pola wyboru do zaznaczania wielu pozycji naraz.
+
+#### Dwa sposoby wskazywania plików
+
+Tabela rozróżnia **wskazanie kliknięciem** (podświetlony wiersz, zawsze dokładnie jedna pozycja) i **zaznaczenie polami wyboru** w pierwszej kolumnie (dowolnie wiele pozycji). To dwa niezależne mechanizmy – odhaczenie pól wyboru nie zmienia tego, co jest wskazane kliknięciem, i odwrotnie. Każdy przycisk paska narzędziowego korzysta tylko z jednego z nich:
+
+| Przycisk | Działa na |
+|---|---|
+| Pobierz Plik | pozycji wskazanej kliknięciem |
+| Zmień Nazwę | pozycji wskazanej kliknięciem |
+| Usuń | pozycji wskazanej kliknięciem |
+| Podgląd / Hex | pozycji wskazanej kliknięciem |
+| Zablokuj/Odblokuj | pozycji wskazanej kliknięciem |
+| Pobierz ZIP | wszystkich pozycjach odhaczonych polami wyboru |
+| Atrybuty | odhaczonych polami wyboru, a gdy nie ma żadnych – pozycji wskazanej kliknięciem |
+
+Masowe kasowanie i masowa zmiana nazw nie istnieją: obie operacje są nieodwracalne albo wymagają nazwy dla każdego pliku z osobna, więc pozostają jednoplikowe. Blokadę wielu plików naraz zmienia się przyciskiem **Atrybuty**, nie przyciskiem **Zablokuj/Odblokuj**.
+
+Pole wyboru w nagłówku tabeli zaznacza i odznacza wszystkie **widoczne** pozycje, więc przy włączonej wyszukiwarce obejmuje tylko wiersze pasujące do frazy. Zaznaczenie przeżywa filtrowanie i przechodzenie między katalogami, a znika przy wczytaniu innego obrazu, założeniu nowego dysku i formatowaniu.
 
 ### 3.1. Pasek Akcji Głównych (Header)
 - **Otwórz ATR / XFD**: Otwiera okno wyboru pliku `.ATR` lub `.XFD` z lokalnego dysku komputera. Obsługiwana jest również funkcja **Drag & Drop** (przeciągnięcie i upuszczenie pliku `.ATR` lub `.XFD` w dowolnym miejscu okna).
@@ -273,9 +291,10 @@ Panel boczny posiada rozszerzoną szerokość **330px**, co zapewnia wygodny i p
 - **Dodaj Plik**: Wgrywa plik binarny lub tekstowy z PC do aktywnego katalogu na obrazie ATR.
 - **Nowy Katalog**: Tworzy nowy podkatalog (aktywny tylko dla MyDOS i SpartaDOS).
 - **Pobierz Plik**: Pobiera zaznaczony plik na komputer PC.
+- **Pobierz ZIP**: Pakuje wszystkie pozycje odhaczone w pierwszej kolumnie tabeli do jednego archiwum ZIP i pobiera je na komputer PC. Nazwa archiwum powstaje z przedrostka `files_` oraz wzorca gęstości i systemu plików, tego samego, którym nazywany jest zapisywany obraz (np. `files_SD_D20.zip`) – dzięki temu archiwum nie myli się z samym obrazem dysku. Odhaczony katalog trafia do archiwum wraz z całą zawartością, na ścieżce liczonej względem bieżącego widoku (`GRY/PODKAT/PLIK.OBJ`). Nazwy zawierające znaki niedozwolone w ścieżkach Windows są w archiwum zastępowane podkreśleniem – ukośnik w nazwie atarowskiej nie tworzy fałszywego poziomu katalogu. Pliki SpartaDOS zachowują swoją datę. Pojedynczy plik nieczytelny nie przerywa pakowania: reszta archiwum powstaje, a pominięte pozycje trafiają do konsoli przeglądarki.
 - **Zmień Nazwę**: Zmienia nazwę zaznaczonego pliku lub katalogu (konwertuje wpisaną nazwę na format 8.3 ATASCII / CP/M).
 - **Zablokuj/Odblokuj**: Przełącza atrybut ochrony pliku przed zapisem/skasowaniem (`Locked` / `Read-Only`).
-- **Edytuj Atrybuty**: Widoczny wyłącznie dla dysków SpartaDOS SDFS – otwiera modal edycji atrybutów `A` (Archive), `H` (Hidden) i `P` (Protected).
+- **Edytuj Atrybuty**: Otwiera modal edycji atrybutów. Dla SpartaDOS SDFS są to `A` (Archive), `H` (Hidden) i `P` (Protected); w pozostałych systemach plików jedynym atrybutem jest ochrona przed zapisem, więc pozostałe pola są ukryte. Modal działa na plikach odhaczonych w tabeli, a gdy żaden nie jest odhaczony – na pojedynczym pliku wskazanym kliknięciem. Przy wielu plikach pole atrybutu, którym te pliki się różnią, pokazuje stan nieokreślony: pozostawione tak, zostawia atrybut u każdego pliku bez zmian, a jedno kliknięcie ustawia go wszystkim, drugie – wszystkim zdejmuje.
 - **Usuń**: Usuwa zaznaczony plik lub podkatalog z obrazu dysku oraz uwalnia jego sektory w mapie alokacji.
 - **Podgląd / Hex**: Otwiera okno podglądu zawartości pliku.
 - **Katalog ATASCII**: Wyświetla modal podglądu całego katalogu w formacie ATASCII z użyciem oryginalnego fontu Atari. Prezentuje pliki w formacie 40-kolumnowym ekranu Atari oraz surową zawartość sektorów katalogowych.

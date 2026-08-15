@@ -287,9 +287,18 @@ class MyDOS {
      * at the first never-used entry exactly as the real DOS does.
      * @param {number} [startSector=361]
      * @param {string} [parentPath='']
+     * @param {Set<number>} [visitedDirs] Directory sectors already expanded
      * @returns {Array<Object>} List of file and directory objects
      */
-    getDirectory(startSector = 361, parentPath = '') {
+    getDirectory(startSector = 361, parentPath = '', visitedDirs = new Set()) {
+        // A subdirectory entry pointing back at the root - or at any directory
+        // already expanded - would recurse without end. The first sector
+        // identifies a directory, so expanding each one at most once per walk
+        // bounds the whole traversal by the size of the disk. A damaged image
+        // then shows that directory as empty instead of taking down the page.
+        if (visitedDirs.has(startSector)) return [];
+        visitedDirs.add(startSector);
+
         const files = [];
         let globalEntryIndex = 0;
         let brokenDir = false;
@@ -390,7 +399,7 @@ class MyDOS {
 
                     // Recurse subdirectories
                     if (isDir && isValid && fileStart > 0) {
-                        fileObj.subFiles = this.getDirectory(fileStart, fullPath);
+                        fileObj.subFiles = this.getDirectory(fileStart, fullPath, visitedDirs);
                     }
 
                     files.push(fileObj);

@@ -656,12 +656,27 @@ class LiteDOS {
     setAttributes(fileObj, attrs = {}) {
         const dirSec = this.atr.readSector(fileObj.dirSector);
         let flag = dirSec[fileObj.dirOffset];
-        if (attrs.isLocked !== undefined) {
-            if (attrs.isLocked) flag |= 0x20;
+        // The UI speaks the SpartaDOS vocabulary, where the read-only bit is
+        // called "protected"; isLocked is kept for callers written earlier.
+        const lock = attrs.protected !== undefined ? attrs.protected : attrs.isLocked;
+        if (lock !== undefined) {
+            if (lock) flag |= 0x20;
             else flag &= ~0x20;
         }
         dirSec[fileObj.dirOffset] = flag;
         this.atr.writeSector(fileObj.dirSector, dirSec);
+        fileObj.flag = flag;
+        fileObj.isLocked = (flag & 0x20) !== 0;
+    }
+
+    /**
+     * Locks or unlocks a file. Every other filesystem module exposes this, and
+     * the engine dispatches to it by name.
+     * @param {Object} fileObj
+     * @param {boolean} lock
+     */
+    setLock(fileObj, lock) {
+        this.setAttributes(fileObj, { protected: lock });
     }
 
     /**

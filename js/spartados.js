@@ -463,10 +463,19 @@ class SpartaDOS {
      * Reads full directory hierarchy starting from MAIN directory map
      * @param {number} [mapSector=this.boot.sectorMap] 
      * @param {string} [dirName='MAIN'] 
-     * @param {string} [parentPath=''] 
+     * @param {string} [parentPath='']
+     * @param {Set<number>} [visitedDirs] Directory map sectors already expanded
      * @returns {Array<Object>} List of files and directories
      */
-    getDirectory(mapSector = this.boot.sectorMap, dirName = 'MAIN', parentPath = '') {
+    getDirectory(mapSector = this.boot.sectorMap, dirName = 'MAIN', parentPath = '', visitedDirs = new Set()) {
+        // A subdirectory entry pointing back at MAIN - or at any directory
+        // already expanded - would recurse without end. The sector map is what
+        // identifies a directory, so expanding each map at most once per walk
+        // bounds the whole traversal by the size of the disk. A damaged image
+        // then shows that directory as empty instead of taking down the page.
+        if (visitedDirs.has(mapSector)) return [];
+        visitedDirs.add(mapSector);
+
         const files = [];
         const { dataSectors } = this.readSectorMap(mapSector);
         if (dataSectors.length === 0) return [];
@@ -542,7 +551,7 @@ class SpartaDOS {
 
             // Recurse subdirectories
             if (isDir && !isDeleted && entryMapSec > 0) {
-                fileObj.subFiles = this.getDirectory(entryMapSec, fullName, fullPath);
+                fileObj.subFiles = this.getDirectory(entryMapSec, fullName, fullPath, visitedDirs);
             }
 
             files.push(fileObj);

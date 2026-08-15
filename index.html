@@ -178,6 +178,14 @@
                         </svg>
                         <span data-i18n>Pobierz Plik</span>
                     </button>
+                    <button id="btnExtractSelected" class="btn btn-secondary btn-sm" disabled data-i18n-title
+                        title="Pobierz zaznaczone pozycje w jednym archiwum ZIP">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                        <span data-i18n>Pobierz ZIP</span>
+                    </button>
                     <button id="btnRenameFile" class="btn btn-secondary btn-sm" disabled data-i18n-title title="Zmień nazwę pliku">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -193,8 +201,8 @@
                         </svg>
                         <span data-i18n>Zablokuj/Odblokuj</span>
                     </button>
-                    <button id="btnEditAttributes" class="btn btn-secondary btn-sm" disabled style="display: none;"
-                        data-i18n-title title="Ustaw atrybuty (A, H, P) w SpartaDOS / SDFS">
+                    <button id="btnEditAttributes" class="btn btn-secondary btn-sm" disabled
+                        data-i18n-title title="Ustaw atrybuty pliku lub wszystkich zaznaczonych plików">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
@@ -241,6 +249,10 @@
                 <table class="file-table">
                     <thead>
                         <tr>
+                            <th class="col-check">
+                                <input type="checkbox" id="chkSelectAll" disabled data-i18n-title
+                                    title="Zaznacz lub odznacz wszystkie widoczne pozycje">
+                            </th>
                             <th data-i18n>Nazwa Pliku</th>
                             <th data-i18n>Sektory</th>
                             <th data-i18n>Rozmiar (B)</th>
@@ -428,15 +440,18 @@
         </div>
     </div>
 
-    <!-- Modal: Edit Attributes (SpartaDOS SDFS) -->
+    <!-- Modal: Edit Attributes (single file or every marked file) -->
     <div id="modalAttributes" class="modal-backdrop">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n>Atrybuty Pliku (SpartaDOS / SDFS)</h2>
+                <h2 data-i18n>Atrybuty Plików</h2>
                 <button class="modal-close" data-close="modalAttributes">&times;</button>
             </div>
             <div class="modal-body">
                 <p id="attrFileNameLabel" style="font-weight: 700; color: var(--color-primary);"></p>
+                <p id="attrMixedHint" style="display: none; font-size: 12px; color: var(--text-muted); margin-top: -4px;"
+                    data-i18n>Pole w stanie nieokreślonym oznacza, że zaznaczone pliki różnią się tym atrybutem —
+                    pozostawione tak, zostanie u każdego bez zmian.</p>
                 <div class="form-group" style="gap: 12px; margin-top: 10px;">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="chkAttrProtect"
@@ -444,12 +459,12 @@
                         <span data-i18n-html><strong>(P) Protected / Locked</strong> – Ochrona przed modyfikacją i skasowaniem (Bit
                             0)</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                    <label id="attrRowHidden" style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="chkAttrHidden"
                             style="width: 16px; height: 16px; accent-color: var(--color-primary);">
                         <span data-i18n-html><strong>(H) Hidden</strong> – Ukryty plik w katalogu (Bit 1)</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                    <label id="attrRowArchive" style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="chkAttrArchive"
                             style="width: 16px; height: 16px; accent-color: var(--color-primary);">
                         <span data-i18n-html><strong>(A) Archive</strong> – Flaga archiwum / zmiany (Bit 2)</span>
@@ -665,14 +680,25 @@
                     </div>
 
                     <div style="margin-bottom: 10px;">
+                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px;" data-i18n>Dwa Sposoby Wskazywania Plików</h4>
+                        <p style="margin: 0 0 4px 0;" data-i18n-html>Tabela plików rozróżnia <strong>wskazanie kliknięciem</strong> i <strong>zaznaczenie polami wyboru</strong> w pierwszej kolumnie. To dwa niezależne mechanizmy, a każdy przycisk korzysta tylko z jednego z nich.</p>
+                        <ol style="padding-left: 20px; margin: 0;">
+                            <li data-i18n-html><strong>Kliknięcie wiersza</strong> podświetla dokładnie jedną pozycję. Działają na niej <strong>Zmień Nazwę</strong>, <strong>Usuń</strong>, <strong>Podgląd / Hex</strong>, <strong>Zablokuj/Odblokuj</strong> oraz <strong>Pobierz Plik</strong>. Pola wyboru nie mają na te przyciski żadnego wpływu.</li>
+                            <li data-i18n-html><strong>Pola wyboru</strong> tworzą zaznaczenie zbiorcze, na którym działa <strong>Pobierz ZIP</strong>. Pole w nagłówku tabeli zaznacza i odznacza wszystkie widoczne pozycje &ndash; przy włączonej wyszukiwarce tylko te pasujące do frazy.</li>
+                            <li data-i18n-html><strong>Atrybuty</strong> to jedyny przycisk korzystający z obu mechanizmów: gdy cokolwiek jest odhaczone polami wyboru, działa na całym tym zaznaczeniu, a gdy nie &ndash; na pojedynczej pozycji wskazanej kliknięciem.</li>
+                            <li data-i18n-html>Zaznaczenie polami wyboru przeżywa filtrowanie wyszukiwarką i przechodzenie między katalogami. Znika przy wczytaniu innego obrazu, założeniu nowego dysku i formatowaniu.</li>
+                        </ol>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
                         <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px;" data-i18n>Wgrywanie, Modyfikacja i Usuwanie Plików</h4>
                         <ol style="padding-left: 20px; margin: 0;">
                             <li data-i18n-html><strong>Dodawanie pliku z PC:</strong> Kliknij <strong>Dodaj Plik</strong> i wybierz plik z dysku komputera (np. <code>.XEX</code>, <code>.COM</code>, <code>.TXT</code>). Nazwa zostanie automatycznie przekonwertowana do standardu 8.3 ATASCII.</li>
-                            <li data-i18n-html><strong>Zablokowanie pliku:</strong> Zaznacz plik na liście i kliknij <strong>Zablokuj/Odblokuj</strong>. Plik zyska status zablokowanego przed skasowaniem.</li>
-                            <li data-i18n-html><strong>Atrybuty SpartaDOS:</strong> Dla dysków SDFS przycisk <strong>Edytuj Atrybuty</strong> pozwala ustawić znaczniki <em>P</em> (Protected), <em>H</em> (Hidden) i <em>A</em> (Archive). Aktywne atrybuty widoczne są jako plakietki na liście plików.</li>
-                            <li data-i18n-html><strong>Zmiana nazwy:</strong> Wybierz plik, kliknij <strong>Zmień Nazwę</strong> i podaj nową nazwę zgodną z formatem 8.3.</li>
-                            <li data-i18n-html><strong>Usuwanie:</strong> Zaznacz plik lub pusty podkatalog i kliknij <strong>Usuń</strong>.</li>
-                            <li data-i18n-html><strong>Eksport:</strong> Przycisk <strong>Wypakuj</strong> zapisuje zaznaczony plik na dysk komputera, a <strong>Zapisz Dysk</strong> pobiera cały zmodyfikowany obraz.</li>
+                            <li data-i18n-html><strong>Zablokowanie pliku:</strong> Kliknij plik na liście i użyj <strong>Zablokuj/Odblokuj</strong>. Przycisk przełącza ochronę <em>jednej</em> pozycji, tej wskazanej kliknięciem. Aby zmienić blokadę wielu plikom naraz, odhacz je polami wyboru i użyj przycisku <strong>Atrybuty</strong>.</li>
+                            <li data-i18n-html><strong>Atrybuty:</strong> Przycisk <strong>Atrybuty</strong> otwiera okno ustawień. Na dyskach SpartaDOS SDFS dostępne są znaczniki <em>P</em> (Protected), <em>H</em> (Hidden) i <em>A</em> (Archive), a w pozostałych systemach plików &ndash; wyłącznie ochrona przed zapisem. Przy wielu odhaczonych plikach pole atrybutu, którym te pliki się różnią, pokazuje stan nieokreślony: pozostawione tak, nie zmienia niczego, a kliknięcia ustawiają atrybut albo zdejmują go wszystkim naraz. Aktywne atrybuty widoczne są jako plakietki na liście plików.</li>
+                            <li data-i18n-html><strong>Zmiana nazwy:</strong> Kliknij plik, wybierz <strong>Zmień Nazwę</strong> i podaj nową nazwę zgodną z formatem 8.3. Operacja dotyczy zawsze jednej pozycji, niezależnie od tego, co jest odhaczone polami wyboru.</li>
+                            <li data-i18n-html><strong>Usuwanie:</strong> Kliknij plik lub pusty podkatalog i użyj <strong>Usuń</strong>. Tak jak zmiana nazwy, dotyczy wyłącznie pozycji wskazanej kliknięciem &ndash; masowego kasowania nie ma.</li>
+                            <li data-i18n-html><strong>Eksport:</strong> <strong>Pobierz Plik</strong> zapisuje na dysku komputera pojedynczy plik wskazany kliknięciem. <strong>Pobierz ZIP</strong> pakuje do jednego archiwum wszystko, co odhaczono polami wyboru &ndash; odhaczony katalog trafia tam wraz z całą zawartością. <strong>Zapisz Dysk</strong> pobiera cały zmodyfikowany obraz.</li>
                         </ol>
                     </div>
 
@@ -786,17 +812,18 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- JavaScript Modules -->
-    <script src="js/i18n.js?v=20260813"></script>
+    <script src="js/i18n.js?v=20260814"></script>
     <script src="js/atascii.js?v=20260726_3"></script>
     <script src="js/atr.js?v=20260726_3"></script>
     <script src="js/dos2.js?v=20260814"></script>
     <script src="js/litedos.js?v=20260727"></script>
-    <script src="js/mydos.js?v=20260814"></script>
-    <script src="js/spartados.js?v=20260727"></script>
+    <script src="js/mydos.js?v=20260814_2"></script>
+    <script src="js/spartados.js?v=20260814"></script>
     <script src="js/cpm.js?v=20260813"></script>
     <script src="js/dos_templates.js?v=20260727_3"></script>
+    <script src="js/zip.js?v=20260814"></script>
     <script src="js/engine.js?v=20260814"></script>
-    <script src="js/app.js?v=20260813"></script>
+    <script src="js/app.js?v=20260814"></script>
 </body>
 
 </html>

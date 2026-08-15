@@ -517,6 +517,24 @@ a:hover {
     vertical-align: middle;
 }
 
+/* Checkbox column: narrow, centred, and out of the way of the name column. */
+.file-table th.col-check,
+.file-table td.col-check {
+    width: 1%;
+    padding-left: 12px;
+    padding-right: 4px;
+    text-align: center;
+}
+
+.file-table .row-check,
+.file-table #chkSelectAll {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
 .file-name-cell {
     display: inline-flex;
     align-items: center;
