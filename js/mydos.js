@@ -509,6 +509,60 @@ class MyDOS {
             throw new Error(T("Brak miejsca w obrazie MyDOS. Wymagane: 8 sektorów, Dostępne: {0}", this.freeSectors));
         }
 
+        // Find empty/deleted entry slot in parent directory and check for duplicate names first
+        const dirSectors = [];
+        if (dirStartSector === 361) {
+            for (let s = 361; s <= 368; s++) dirSectors.push(s);
+        } else {
+            let cur = dirStartSector;
+            const visited = new Set();
+            while (cur > 0 && cur <= this.atr.sectorCount && !visited.has(cur)) {
+                visited.add(cur);
+                dirSectors.push(cur);
+                if (dirSectors.length >= 8) break;
+                cur++;
+            }
+        }
+
+        let targetSector = 0;
+        let targetOff = 0;
+        const nameUpper = f83.fullName.toUpperCase();
+        let slotScanEnd = false;
+        for (const s of dirSectors) {
+            if (slotScanEnd) break;
+            const secData = this.atr.readSector(s);
+            const entries = Math.min(MYDOS_DIR_ENTRIES_PER_SECTOR, Math.floor(secData.length / 16));
+            for (let e = 0; e < entries; e++) {
+                const off = e * 16;
+                const flag = secData[off];
+                if (MyDOS.isDirectoryEnd(secData, off)) {
+                    if (targetSector === 0) {
+                        targetSector = s;
+                        targetOff = off;
+                    }
+                    slotScanEnd = true;
+                    break;
+                }
+                if (flag === 0x80 || (flag & 0x80) !== 0) {
+                    if (targetSector === 0) {
+                        targetSector = s;
+                        targetOff = off;
+                    }
+                } else if ((flag & 0x40) !== 0 || (flag & 0x10) !== 0) {
+                    const existingName = ATASCII.bytesToString(secData.subarray(off + 5, off + 13), false).trim();
+                    const existingExt = ATASCII.bytesToString(secData.subarray(off + 13, off + 16), false).trim();
+                    const existingFull = (existingExt ? `${existingName}.${existingExt}` : existingName).toUpperCase();
+                    if (existingFull === nameUpper) {
+                        throw new Error(T("Plik lub katalog '{0}' już istnieje w tym katalogu.", f83.fullName));
+                    }
+                }
+            }
+        }
+
+        if (targetSector === 0) {
+            throw new Error(T("Katalog nadrzędny jest pełny (maksymalnie {0} pozycji).", MYDOS_DIR_ENTRIES_PER_SECTOR * 8));
+        }
+
         // A MyDOS subdirectory is a run of 8 consecutive sectors: the directory
         // entry stores only the first sector, so the block must not be split.
         let runStart = 0;
@@ -534,52 +588,17 @@ class MyDOS {
             this.atr.writeSector(s, new Uint8Array(sectorSize));
         }
 
-        // Find empty/deleted entry slot in parent directory
-        const dirSectors = [];
-        if (dirStartSector === 361) {
-            for (let s = 361; s <= 368; s++) dirSectors.push(s);
-        } else {
-            let cur = dirStartSector;
-            const visited = new Set();
-            while (cur > 0 && cur <= this.atr.sectorCount && !visited.has(cur)) {
-                visited.add(cur);
-                dirSectors.push(cur);
-                if (dirSectors.length >= 8) break;
-                cur++;
-            }
-        }
+        const secData = this.atr.readSector(targetSector);
+        secData[targetOff] = 0x52; // Subdirectory flag in MyDOS ($52 = in-use | subdir | DOS 2.0)
+        secData[targetOff + 1] = 8 & 0xFF; // Sector count = 8
+        secData[targetOff + 2] = 0;
+        secData[targetOff + 3] = allocatedSectors[0] & 0xFF; // First sector
+        secData[targetOff + 4] = (allocatedSectors[0] >> 8) & 0xFF;
 
-        let written = false;
-        for (const s of dirSectors) {
-            const secData = this.atr.readSector(s);
-            const entries = Math.min(MYDOS_DIR_ENTRIES_PER_SECTOR, Math.floor(secData.length / 16));
+        secData.set(nameBytes, targetOff + 5);
+        secData.set(extBytes, targetOff + 13);
 
-            for (let e = 0; e < entries; e++) {
-                const off = e * 16;
-                const flag = secData[off];
-
-                if (flag === 0x00 || flag === 0x80) {
-                    secData[off] = 0x52; // Subdirectory flag in MyDOS ($52 = in-use | subdir | DOS 2.0)
-                    secData[off + 1] = 8 & 0xFF; // Sector count = 8
-                    secData[off + 2] = 0;
-                    secData[off + 3] = allocatedSectors[0] & 0xFF; // First sector
-                    secData[off + 4] = (allocatedSectors[0] >> 8) & 0xFF;
-
-                    secData.set(nameBytes, off + 5);
-                    secData.set(extBytes, off + 13);
-
-                    this.atr.writeSector(s, secData);
-                    written = true;
-                    break;
-                }
-            }
-            if (written) break;
-        }
-
-        if (!written) {
-            allocatedSectors.forEach(s => this.setSectorFree(s, true));
-            throw new Error(T("Katalog nadrzędny jest pełny (maksymalnie {0} pozycji).", MYDOS_DIR_ENTRIES_PER_SECTOR * 8));
-        }
+        this.atr.writeSector(targetSector, secData);
     }
 
     /**
@@ -640,13 +659,13 @@ class MyDOS {
                     slotScanEnd = true;
                     break;
                 }
-                if (flag === 0x80) {
+                if (flag === 0x80 || (flag & 0x80) !== 0) {
                     if (targetSector === 0) {
                         targetSector = s;
                         targetOff = off;
                         targetIndex = globalIdx;
                     }
-                } else if ((flag & 0x40) !== 0) {
+                } else if ((flag & 0x40) !== 0 || (flag & 0x10) !== 0) {
                     const nameBytes = secData.subarray(off + 5, off + 13);
                     const extBytes = secData.subarray(off + 13, off + 16);
                     const existingName = ATASCII.bytesToString(nameBytes, false).trim();
@@ -729,6 +748,10 @@ class MyDOS {
         }
 
         if (fileObj.isDir) {
+            const subEntries = this.getDirectory(fileObj.startSector);
+            if (subEntries.some(f => !f.isDeleted)) {
+                throw new Error(T("Katalog '{0}' nie jest pusty.", fileObj.fullName));
+            }
             for (let i = 0; i < fileObj.sectorCount; i++) {
                 this.setSectorFree(fileObj.startSector + i, true);
             }
@@ -752,6 +775,29 @@ class MyDOS {
         }
 
         const f83 = ATASCII.formatFilename83(newFilename);
+        const nameUpper = f83.fullName.toUpperCase();
+
+        const findSiblings = (list) => {
+            if (list.some(f => f.dirSector === fileObj.dirSector && f.dirOffset === fileObj.dirOffset)) {
+                return list;
+            }
+            for (const f of list) {
+                if (f.isDir && f.subFiles && f.subFiles.length > 0) {
+                    const found = findSiblings(f.subFiles);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+        const siblings = findSiblings(this.getDirectory()) || [];
+        for (const f of siblings) {
+            if (!f.isDeleted && f.isValid && (f.dirSector !== fileObj.dirSector || f.dirOffset !== fileObj.dirOffset)) {
+                if (f.fullName.toUpperCase() === nameUpper) {
+                    throw new Error(T("Plik lub katalog '{0}' już istnieje w tym katalogu.", f83.fullName));
+                }
+            }
+        }
+
         const dirSec = this.atr.readSector(fileObj.dirSector);
         dirSec.set(f83.atasciiName, fileObj.dirOffset + 5);
         this.atr.writeSector(fileObj.dirSector, dirSec);

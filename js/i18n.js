@@ -113,6 +113,7 @@ var EN_DICT = {
     "Edycja atrybutów A H P nie jest obsługiwana dla {0}.": "Editing A H P attributes is not supported for {0}.",
     "Katalog dysku CP/M 2.2 jest pełny (brak wolnych wpisów).": "The CP/M 2.2 disk directory is full (no free entries).",
     "Katalog dysku LiteDOS jest pełny.": "The LiteDOS disk directory is full.",
+    "Katalog '{0}' nie jest pusty.": "Directory '{0}' is not empty.",
     "Katalog jest pełny (maksymalnie {0} pozycji).": "The directory is full (maximum {0} entries).",
     "Katalog jest pełny. Maksymalna liczba plików to {0}.": "The directory is full. The maximum number of files is {0}.",
     "Katalog nadrzędny jest pełny (maksymalnie {0} pozycji).": "The parent directory is full (maximum {0} entries).",

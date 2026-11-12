@@ -281,7 +281,7 @@ class AtariDOS2 {
         if (this.isDos2PlusMD) {
             ranges.push([4, 358]);
             ranges.push([369, 719]);
-            ranges.push([720, 1040]);
+            ranges.push([721, 1023]);
         } else {
             ranges.push([4, 359]);
             ranges.push([369, 719]);
@@ -631,6 +631,29 @@ class AtariDOS2 {
         }
 
         const f83 = ATASCII.formatFilename83(newFilename);
+        const nameUpper = f83.fullName.toUpperCase();
+        const sectorSize = this.atr.getSectorSize(4);
+        const entriesPerSector = Math.min(DOS2_DIR_ENTRIES_PER_SECTOR, Math.floor(sectorSize / 16));
+        let dupScanEnd = false;
+        for (let sector = 361; sector <= 368 && !dupScanEnd; sector++) {
+            const secData = this.atr.readSector(sector);
+            for (let e = 0; e < entriesPerSector; e++) {
+                const off = e * 16;
+                const flag = secData[off];
+                if (AtariDOS2.isDirectoryEnd(secData, off)) { dupScanEnd = true; break; }
+                if (flag === 0x80 || (flag & 0x40) === 0) continue;
+                if (sector === fileObj.dirSector && off === fileObj.dirOffset) continue;
+                const nameBytes = secData.subarray(off + 5, off + 13);
+                const extBytes = secData.subarray(off + 13, off + 16);
+                const existingName = ATASCII.bytesToString(nameBytes, false).trim();
+                const existingExt = ATASCII.bytesToString(extBytes, false).trim();
+                const existingFull = (existingExt ? `${existingName}.${existingExt}` : existingName).toUpperCase();
+                if (existingFull === nameUpper) {
+                    throw new Error(T("Plik '{0}' już istnieje na dysku.", f83.fullName));
+                }
+            }
+        }
+
         const dirSectorData = this.atr.readSector(fileObj.dirSector);
         dirSectorData.set(f83.atasciiName, fileObj.dirOffset + 5);
         this.atr.writeSector(fileObj.dirSector, dirSectorData);
@@ -669,25 +692,27 @@ class AtariDOS2 {
         const vtoc = new Uint8Array(atr.isDD ? 256 : 128);
         if (isDos2Plus && atr.sectorCount === 1040) {
             vtoc[0] = 0x03; // DOS II+ MD VTOC type 3
-            const totalUsable = 1027; // 1040 total - 13 system sectors (1..3 boot, 359 VTOC2, 360 VTOC1, 361..368 Dir)
+            // 1024 addressable sectors (0..1023) minus 15 system/reserved sectors:
+            // 0..3 boot, 359 VTOC2, 360 VTOC1, 361..368 Dir, 720 reserved.
+            const totalUsable = 1009;
             vtoc[1] = totalUsable & 0xFF;
             vtoc[2] = (totalUsable >> 8) & 0xFF;
             vtoc[3] = totalUsable & 0xFF;
             vtoc[4] = (totalUsable >> 8) & 0xFF;
 
-            // Set bits for sectors 4..358 and 369..943 as free (1)
+            // Set bits for sectors 4..358, 369..719 and 721..943 as free (1)
             for (let s = 0; s <= 943; s++) {
                 const byteIdx = 10 + Math.floor(s / 8);
                 const bitMask = 0x80 >> (s % 8);
-                if ((s >= 4 && s <= 358) || (s >= 369 && s <= 943)) {
+                if ((s >= 4 && s <= 358) || (s >= 369 && s <= 719) || (s >= 721 && s <= 943)) {
                     vtoc[byteIdx] |= bitMask;
                 }
             }
             atr.writeSector(360, vtoc);
 
-            // Initialize VTOC2 at sector 359 for sectors 944..1040
+            // Initialize 10-byte VTOC2 at sector 359 for sectors 944..1023
             const vtoc2 = new Uint8Array(128);
-            for (let s = 944; s <= 1040; s++) {
+            for (let s = 944; s <= 1023; s++) {
                 const relSec = s - 944;
                 const byteIdx = Math.floor(relSec / 8);
                 const bitMask = 0x80 >> (relSec % 8);
@@ -743,6 +768,8 @@ class AtariDOS2 {
             }
         }
 
-        return new AtariDOS2(atr);
+        const inst = new AtariDOS2(atr);
+        if (isDos2Plus) inst.dosType = 'DOS II+/D';
+        return inst;
     }
 }

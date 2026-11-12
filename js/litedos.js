@@ -388,22 +388,23 @@ class LiteDOS {
                 continue;
             }
             const entriesPerSec = Math.min(LITEDOS_DIR_ENTRIES_PER_SECTOR, Math.floor(secData.length / 16));
+            let endOfDirectory = false;
 
             for (let entry = 0; entry < entriesPerSec; entry++) {
                 const off = entry * 16;
                 const flag = secData[off];
 
                 if (flag === 0x00) {
-                    globalIndex++;
-                    continue;
+                    endOfDirectory = true;
+                    break;
                 }
 
                 const isDeleted = flag === 0x80;
                 const isValid = (flag & 0x40) !== 0;
                 const sectorCount = secData[off + 1] | (secData[off + 2] << 8);
                 const startSector = secData[off + 3] | (secData[off + 4] << 8);
-                const nameBytes = secData.subarray(off + 5, off + 13);
-                const extBytes = secData.subarray(off + 13, off + 16);
+                const nameBytes = new Uint8Array(secData.subarray(off + 5, off + 13));
+                const extBytes = new Uint8Array(secData.subarray(off + 13, off + 16));
 
                 const name = ATASCII.bytesToString(nameBytes, false).trim();
                 const ext = ATASCII.bytesToString(extBytes, false).trim();
@@ -421,9 +422,10 @@ class LiteDOS {
                 }
 
                 files.push({
+                    index: globalIndex,
+                    entryIndex: globalIndex,
                     dirSector: sector,
                     dirOffset: off,
-                    entryIndex: globalIndex,
                     flag,
                     isValid,
                     isDeleted,
@@ -433,6 +435,8 @@ class LiteDOS {
                     startSector,
                     name,
                     ext,
+                    nameBytes,
+                    extBytes,
                     fullName,
                     sectors,
                     sizeBytes
@@ -440,6 +444,7 @@ class LiteDOS {
 
                 globalIndex++;
             }
+            if (endOfDirectory) break;
         }
         return files;
     }
@@ -638,12 +643,18 @@ class LiteDOS {
     }
 
     renameFile(fileObj, newFilename) {
+        if (fileObj.isLocked) {
+            throw new Error(T("Plik '{0}' jest zablokowany (Read-Only).", fileObj.fullName));
+        }
+
         const f83 = ATASCII.formatFilename83(newFilename);
         const nameUpper = f83.fullName.toUpperCase();
 
         const existingFiles = this.getDirectory();
         for (const file of existingFiles) {
-            if (file.isValid && !file.isDeleted && file.fullName.toUpperCase() === nameUpper) {
+            if (file.isValid && !file.isDeleted &&
+                (file.dirSector !== fileObj.dirSector || file.dirOffset !== fileObj.dirOffset) &&
+                file.fullName.toUpperCase() === nameUpper) {
                 throw new Error(T("Plik '{0}' już istnieje na dysku.", f83.fullName));
             }
         }

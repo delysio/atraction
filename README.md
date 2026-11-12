@@ -13,7 +13,7 @@ Aplikacja została zaprojektowana od podstaw w czystym języku JavaScript (ES6+)
 - **Obsługa wielu systemów plików**: Atari DOS 2.0S, DOS 2.5, DOS II+/D, MyDOS 4.5x, SpartaDOS (SDFS), **LiteDOS-SE** oraz **CP/M 2.2** w dwóch wariantach – dla stacji **Indus GT** i dla karty CP/M urządzenia **Atari 1090**.
 - **Obsługa obrazów ATR oraz surowych plików XFD**: Wykrywanie i wirtualne pakowanie surowych obrazów `.XFD` (bez nagłówka ATR) z eksportem do czystego formatu XFD.
 - **Obsługa wszystkich gęstości dysków oraz geometrii niestandardowej**: SD (Single Density), MD/ED (Medium/Enhanced Density), DD (Double Density), QD (Quad Density), DS/QD (720 KB) oraz dowolna geometria **Niestandardowa** (własna liczba sektorów, sektory 128/256/512 B, własna liczba sektorów startowych).
-- **Operacje na plikach**: Dodawanie plików, usuwanie, zmiana nazwy (format 8.3 ATASCII / CP/M), zmiana statusu blokady (Lock/Unlock / Read-Only), edycja atrybutów **A/H/P** dla SpartaDOS SDFS oraz eksport plików na komputer PC.
+- **Operacje na plikach i archiwach ZIP**: Dodawanie plików, usuwanie plików i pustych podkatalogów, zmiana nazwy (format 8.3 ATASCII / CP/M), zmiana statusu blokady (Lock/Unlock / Read-Only), pojedyncza i zbiorcza edycja atrybutów (**P/H/A** dla SpartaDOS SDFS oraz ochrona przed zapisem w pozostałych systemach), a także eksport pojedynczych plików lub całych zaznaczonych drzew katalogów do archiwum **ZIP**.
 - **Obsługa podkatalogów**: Tworzenie i nawigacja po strukturze drzewiastej dla systemów MyDOS i SpartaDOS.
 - **Zaawansowany podgląd treści**: Zintegrowany podgląd tekstowy z dekodowaniem ATASCII oraz Hex Viewer z możliwością przełączania czcionki pomiędzy **PC (UTF-8)** a **ATASCII**.
 - **Tryb tylko do odczytu (Read-Only)**: Zaawansowana walidacja spójności alokacji sektorów dla wszystkich sześciu systemów plików – wykrywanie błędnych bitmap/map alokacji oraz bezpieczny odczyt uszkodzonych struktur. Reguły walidacji zostały odtworzone na podstawie kodu źródłowego biblioteki ATIO emulatora Altirra.
@@ -178,13 +178,13 @@ Weryfikacja odbywa się przed utworzeniem obrazu, zarówno dla geometrii niestan
   - Rozmiar sektora kodowany jest zarówno bezpośrednio (bajty 33–34), jak i w bajcie 31 wg konwencji Altirry: `128` → 128 B, `0` → 256 B, `1` → 512 B. Bajt 7 bloku boot niesie sygnaturę formatu: `0x80` dla wolumenów SD/DD, `0x40` dla wolumenów z sektorami 512 B – po tej sygnaturze aplikacja rozpoznaje SpartaDOS jeszcze przed sondą VTOC innych systemów.
   - Liczba sektorów startowych zależy od rozmiaru sektora: **3** dla sektorów do 256 B, **1** dla sektorów 512 B (przy 512 B sektor 2 jest już częścią mapy bitowej, nie kodu rozruchowego).
   - Każdy plik oraz katalog posiada własny **File Map / Sector Map** (łańcuch sektorów SUSB wskazujący bloki danych, z maksymalną liczbą wpisów `(sectorSize - 4) / 2` na jeden sektor mapy).
-  - Prawdziwa struktura katalogowa z nieograniczoną głębokością podkatalogów.
+  - Prawdziwa struktura katalogowa z nieograniczoną głębokością podkatalogów. Usunięcie podkatalogu jest możliwe wyłącznie wtedy, gdy jest on pusty.
 - **Atrybuty Plików (A H P)**:
   - Bajt statusu (bajt 0 wpisu katalogowego) obsługuje standardowe flagi SpartaDOS SDFS:
-    - **`P` (Protected)**: Ochrona pliku przed modyfikacją oraz usunięciem.
+    - **`P` (Protected)**: Ochrona pliku przed modyfikacją, zmianą nazwy oraz usunięciem.
     - **`H` (Hidden)**: Ukrywanie pliku w katalogu.
     - **`A` (Archive)**: Flaga archiwizacji / modyfikacji pliku.
-  - Aplikacja ATRaction umożliwia pełny odczyt i edycję atrybutów `A`, `H`, `P` dla dysków SpartaDOS / SDFS poprzez dedykowany modal **Edytuj Atrybuty**, dostępny wyłącznie dla tego systemu plików.
+  - Aplikacja ATRaction umożliwia pełny odczyt i edycję atrybutów `A`, `H`, `P` (pojedynczo oraz masowo dla zaznaczonych plików) poprzez okno **Atrybuty**; w pozostałych systemach plików to samo okno pozwala masowo przełączać atrybut ochrony przed zapisem (`Protected` / `Read-Only`).
 - **Odporność na Błędy Zapisu**: Operacje `importFile`, `createDirectory` oraz alokacja sektorów najpierw rezerwują całą wymaganą przestrzeń (dane + mapa sektorów), a dopiero potem zapisują strukturę katalogową. W razie niepowodzenia na dowolnym etapie zaalokowane sektory są automatycznie zwalniane, co zapobiega powstawaniu osieroconych (zagubionych) sektorów w bitmapie.
 
 #### 6. LiteDOS-SE (`LiteDOS-SE`)
@@ -193,7 +193,7 @@ Weryfikacja odbywa się przed utworzeniem obrazu, zarówno dla geometrii niestan
   - **LiteDOS-SE (klasyczny)** – bity 7–6 bajtu ID sektora 360 równe `01`. Bajt `$00` niesie rozmiar klastra (dolne 6 bitów, `clusterSize - 1`), bajty `$01-$02` całkowitą liczbę sektorów, `$03-$04` liczbę wolnych sektorów, bajty `$05-$09` są zawsze zerowe (kryterium detekcji), a bitmapa klastrów zaczyna się pod offsetem `$0A` i ma 118 bajtów (SD) lub 128 bajtów (DD).
   - **LiteDOS 2.x** – bity `10`, sygnatura tekstowa `LiteDOS` pod offsetem `$03`, 64-bajtowa (512-bitowa) bitmapa klastrów od offsetu `$20`, 24-bitowy licznik wolnych sektorów pod `$71`.
 - **Alokacja Klastrowa**: Jednostką alokacji jest **klaster** – potęga dwójki od 1 do 64 sektorów. Rozmiar klastra dobierany jest tak, by 512-bitowa (SE) lub 944/1024-bitowa bitmapa pomieściła cały dysk; przy formatowaniu przez ATRaction rozmiar klastra jest automatycznie zwiększany, aż zmieści się w dostępnej bitmapie.
-- **Obszar VTOC i Katalogu**: Zajmuje dwa klastry wyrównane do granicy podwójnego klastra i zawsze obejmujące sektor 360 (np. przy klastrze 1: sektory 360–361; przy klastrze 8: sektory 352–367). Katalog zaczyna się od sektora 361 i "zawija się" wewnątrz tego obszaru, omijając sam sektor 360. Każdy sektor katalogowy mieści zawsze 8 wpisów, również w gęstości podwójnej.
+- **Obszar VTOC i Katalogu**: Zajmuje dwa klastry wyrównane do granicy podwójnego klastra i zawsze obejmujące sektor 360 (np. przy klastrze 1: sektory 360–361; przy klastrze 8: sektory 352–367). Katalog zaczyna się od sektora 361 i "zawija się" wewnątrz tego obszaru, omijając sam sektor 360. Każdy sektor katalogowy mieści zawsze 8 wpisów, również w gęstości podwójnej. Przeglądanie katalogu kończy się na pierwszym wpisie o statusie `$00` (wpisy skasowane `$80` są pomijane), a pliki z flagą blokady (`0x20`) są chronione przed usunięciem i zmianą nazwy.
 - **Obszar Jądra Systemu**: LiteDOS nie ma pliku `DOS.SYS` – jego niewielkie jądro (ok. 2 KB) leży w klastrach bezpośrednio za obszarem VTOC, oznaczonych w bitmapie jako zajęte, choć nieprzypisanych do żadnego pliku. Silnik walidacji rozpoznaje ten wiodący ciąg alokowanych, niczyich klastrów jako obszar systemowy i nie zgłasza go jako zagubionych sektorów.
 - **Łącza Sektorów**: 10-bitowe (z numerem pliku w górnych bitach, flaga `0x42`) dla dysków do 1024 sektorów, 16-bitowe (flaga `0x46`) dla większych.
 
@@ -349,16 +349,21 @@ Panel boczny posiada rozszerzoną szerokość **330px**, co zapewnia wygodny i p
    - Zaznacz plik na liście (kliknij na jego wiersz).
    - Kliknij przycisk **Zablokuj/Odblokuj**. W kolumnie *Atrybuty* pojawi się flaga `[LOCKED]`.
 
-3. **Edycja atrybutów SpartaDOS (A/H/P)**:
-   - Na dysku SDFS zaznacz plik i kliknij **Edytuj Atrybuty**.
-   - Zaznacz odpowiednie znaczniki (`Protected`, `Hidden`, `Archive`) i zatwierdź – aktywne atrybuty pojawią się jako plakietki przy nazwie pliku.
+3. **Edycja atrybutów (pojedynczo i zbiorczo)**:
+   - Odhacz kilka plików polami wyboru w pierwszej kolumnie tabeli (lub wskaż pojedynczy plik kliknięciem) i kliknij przycisk **Atrybuty**.
+   - Na dysku SpartaDOS SDFS dostępne są znaczniki `Protected`, `Hidden` oraz `Archive`; w pozostałych systemach plików widoczna jest ochrona przed zapisem (`Protected`).
+   - Przy zaznaczeniu wielu plików różniących się danym atrybutem pole przyjmuje stan pośredni (nieokreślony) – pozostawione bez zmian nie naruszy indywidualnych ustawień plików, natomiast kliknięcie ustawi lub zdejmie atrybut wszystkim zaznaczonym plikom naraz.
 
 4. **Zmiana nazwy pliku**:
-   - Zaznacz plik i kliknij **Zmień Nazwę**.
-   - Wpisz nową nazwę (np. `GRA.XEX`) i zatwierdź przyciskiem **Zmień Nazwę**.
+   - Wskaż plik kliknięciem i wybierz **Zmień Nazwę**.
+   - Wpisz nową nazwę (np. `GRA.XEX`) i zatwierdź – aplikacja sprawdzi, czy plik nie jest zablokowany oraz czy w tym samym katalogu nie istnieje już pozycja o tej samej nazwie.
 
-5. **Usuwanie pliku**:
-   - Zaznacz plik i kliknij **Usuń**. Potwierdź chęć usunięcia w oknie dialogowym.
+5. **Usuwanie pliku lub pustego podkatalogu**:
+   - Wskaż plik lub pusty podkatalog kliknięciem i wybierz **Usuń**. Potwierdź operację w oknie dialogowym (pliki zablokowane oraz niepuste podkatalogi są chronione przed usunięciem).
+
+6. **Eksport pojedynczy i pobieranie archiwum ZIP**:
+   - Aby pobrać jeden plik, wskaż go kliknięciem i wybierz **Pobierz Plik** (lub ikonę pobierania w wierszu tabeli).
+   - Aby pobrać wiele plików lub całe podkatalogi naraz, odhacz je polami wyboru w pierwszej kolumnie i kliknij **Pobierz ZIP**.
 
 ---
 
@@ -397,7 +402,7 @@ Komputery Atari 8-bit używają własnego standardu kodowania znaków zwanego **
 1. **Znak Końca Linii (EOL)**:
    - ATASCII używa wartości `0x9B` (155 w systemie dziesiętnym) jako znaku końca linii (End-Of-Line).
    - Standard PC używa `0x0A` (`\n` w Unix/Linux) lub `0x0D 0x0A` (`\r\n` w Windows).
-   - Aplikacja **ATRaction** automatycznie konwertuje bajty `0x9B` na `\n` podczas podglądu i eksportu tekstowego oraz konwertuje `\n` na `0x9B` przy imporcie plików tekstowych.
+   - Aplikacja **ATRaction** automatycznie konwertuje bajty `0x9B` na `\n` podczas podglądu tekstowego, zachowując jednocześnie oryginalną postać binarną pliku podczas importu i eksportu.
 2. **Znaki Inwertowane (Inverse Video)**:
    - Bajty z ustawionym najstarszym bitem (wartości `0x80`–`0xFF`) reprezentują znaki wyświetlane w negatywie (inwersja).
 3. **Znaki Graficzne (Internal Character Set)**:

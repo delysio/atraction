@@ -754,9 +754,13 @@ class DiskManager {
         }
 
         const usedSectors = isUnrealistic ? 0 : Math.max(0, sectorCount - freeSectors);
-        const avgSectorSize = this.atr.isDD ? 256 : 128;
-        const totalBytes = this.atr.imageSize - 16;
-        const freeBytes = freeSectors * (avgSectorSize - 3);
+        const dataSectorSize = (this.dos && this.dos.boot && this.dos.boot.sectorSize)
+            ? this.dos.boot.sectorSize
+            : (this.atr.sectorSize || (this.atr.isDD ? 256 : 128));
+        const hasSectorLinks = !(this.dosType === 'SpartaDOS' || (typeof CPM !== 'undefined' && this.dos instanceof CPM));
+        const bytesPerFreeSector = hasSectorLinks ? Math.max(0, dataSectorSize - 3) : dataSectorSize;
+        const totalBytes = this.atr.isXFD ? this.atr.imageSize : Math.max(0, this.atr.imageSize - 16);
+        const freeBytes = freeSectors * bytesPerFreeSector;
 
         return {
             density: this.atr.density,

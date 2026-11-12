@@ -347,6 +347,7 @@ class CPM {
                 ext: file.ext,
                 nameBytes: nameBytes,
                 extBytes: extBytes,
+                rawFullName: fullName,
                 fullName: displayFullName,
                 startSector: allSectors[0] || 0,
                 sectorCount: allSectors.length,
@@ -355,6 +356,42 @@ class CPM {
             });
         }
         return files;
+    }
+
+    /**
+     * Sanitizes and formats a filename into CP/M 8.3 upper-case printable ASCII.
+     * Strips any path components, trailing " [Un]" user badge, diacritics, and
+     * characters invalid in CP/M directory entries. Splits on the last dot.
+     * @param {string} rawName
+     * @returns {{name: string, ext: string, paddedName: string, paddedExt: string, fullName: string}}
+     */
+    static formatFilename(rawName) {
+        let base = String(rawName || '').split(/[/\\]/).pop();
+        base = base.replace(/\s*\[U\d+\]\s*$/i, '').trim();
+
+        const lastDot = base.lastIndexOf('.');
+        let rawBase = lastDot > 0 ? base.substring(0, lastDot) : (lastDot === 0 ? '' : base);
+        let rawExt = lastDot >= 0 ? base.substring(lastDot + 1) : '';
+
+        const sanitizePart = (str, maxLen) => {
+            const ascii = str
+                .replace(/[łŁ]/g, 'L')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9_\-@#$!%&'()^~`{}]/g, '');
+            return ascii.substring(0, maxLen);
+        };
+
+        const name = sanitizePart(rawBase, 8) || 'UNNAMED';
+        const ext = sanitizePart(rawExt, 3);
+        return {
+            name,
+            ext,
+            paddedName: name.padEnd(8, ' '),
+            paddedExt: ext.padEnd(3, ' '),
+            fullName: ext ? `${name}.${ext}` : name
+        };
     }
 
     /**
@@ -400,14 +437,20 @@ class CPM {
         if (!fileObj || !fileObj.dirEntries) throw new Error(T("Nieprawidłowy obiekt pliku do zmiany nazwy."));
         if (fileObj.isLocked) throw new Error(T("Plik {0} jest zabezpieczony przed zapisem.", fileObj.fullName));
 
-        const clean = newNameStr.replace(/\s+/g, '').toUpperCase();
-        const parts = clean.split('.');
-        let name = parts[0] || 'UNNAMED';
-        let ext = parts[1] || '';
-        if (name.length > 8) name = name.substring(0, 8);
-        if (ext.length > 3) ext = ext.substring(0, 3);
-        name = name.padEnd(8, ' ');
-        ext = ext.padEnd(3, ' ');
+        const formatted = CPM.formatFilename(newNameStr);
+        const name = formatted.paddedName;
+        const ext = formatted.paddedExt;
+        const targetUser = fileObj.user || 0;
+
+        const duplicate = this.getDirectory().find(f =>
+            (f.user || 0) === targetUser &&
+            (f.dirSector !== fileObj.dirSector || f.dirOffset !== fileObj.dirOffset) &&
+            f.name === formatted.name &&
+            f.ext === formatted.ext
+        );
+        if (duplicate) {
+            throw new Error(T("Plik '{0}' już istnieje na dysku.", formatted.fullName));
+        }
 
         for (const entry of fileObj.dirEntries) {
             const secData = this.atr.readSector(entry.sector);
@@ -471,28 +514,41 @@ class CPM {
         }
         const prof = this.profile;
 
-        const clean = filename.replace(/\s+/g, '').toUpperCase();
-        const parts = clean.split('.');
-        let name = parts[0] || 'UNNAMED';
-        let ext = parts[1] || '';
-        if (name.length > 8) name = name.substring(0, 8);
-        if (ext.length > 3) ext = ext.substring(0, 3);
-        name = name.padEnd(8, ' ');
-        ext = ext.padEnd(3, ' ');
+        const formatted = CPM.formatFilename(filename);
+        const name = formatted.paddedName;
+        const ext = formatted.paddedExt;
 
-        // Remove existing file with the same name if any
-        const existing = this.getDirectory().find(f => f.name === name.trim() && f.ext === ext.trim());
-        if (existing) {
-            if (existing.isLocked) throw new Error(T("Plik {0} istnieje i jest zabezpieczony przed zapisem.", existing.fullName));
-            this.deleteFile(existing);
+        // Check if a file with the same name already exists in User 0
+        const existing = this.getDirectory().find(f => (f.user || 0) === 0 && f.name === formatted.name && f.ext === formatted.ext);
+        if (existing && existing.isLocked) {
+            throw new Error(T("Plik {0} istnieje i jest zabezpieczony przed zapisem.", existing.fullName));
         }
 
         const dataLen = fileBytes ? fileBytes.length : 0;
         const totalRecords = Math.max(1, Math.ceil(dataLen / 128));
         const totalBlocksNeeded = Math.ceil((totalRecords * 128) / prof.blockSize);
+        const extentsCount = Math.ceil(totalBlocksNeeded / 16) || 1;
 
-        if (this.freeSectors / prof.sectorsPerBlock < totalBlocksNeeded) {
+        const existingBlocks = existing ? Math.floor(existing.sectorCount / prof.sectorsPerBlock) : 0;
+        if ((this.freeSectors / prof.sectorsPerBlock) + existingBlocks < totalBlocksNeeded) {
             throw new Error(T("Brak wolnego miejsca na dysku CP/M 2.2. Wymagane bloki: {0}, wolne: {1}.", totalBlocksNeeded, this.freeSectors / prof.sectorsPerBlock));
+        }
+
+        // Verify enough directory entries are available before deleting the old file
+        let freeDirEntries = existing ? existing.dirEntries.length : 0;
+        for (let sec = prof.dirFirstSector; sec <= prof.dirLastSector; sec++) {
+            const secData = this.atr.readSector(sec);
+            for (let off = 0; off < prof.sectorSize; off += 32) {
+                const u = this.decode(secData[off]);
+                if (u === CPM.ERASED || u > 15) freeDirEntries++;
+            }
+        }
+        if (freeDirEntries < extentsCount) {
+            throw new Error(T("Katalog dysku CP/M 2.2 jest pełny (brak wolnych wpisów)."));
+        }
+
+        if (existing) {
+            this.deleteFile(existing);
         }
 
         // Collect available free allocation blocks
@@ -525,7 +581,6 @@ class CPM {
         }
 
         // Create directory extent entries (up to 16 blocks per extent)
-        const extentsCount = Math.ceil(totalBlocksNeeded / 16) || 1;
         let blocksAssigned = 0;
         for (let ex = 0; ex < extentsCount; ex++) {
             const extBlocksCount = Math.min(16, totalBlocksNeeded - blocksAssigned);

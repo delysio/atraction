@@ -32,18 +32,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // in. Marks survive re-renders (the search box re-renders on every
     // keystroke) and are dropped when the listing itself changes underneath.
     const markedFiles = new Set();
-    const markKey = (file) => `${activeDirPath}|${file.fullName}`;
+    const markKey = (file, dirPath = activeDirPath) => `${dirPath}|${file.fullName}`;
+
+    function escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
     function clearMarks() {
         markedFiles.clear();
     }
 
     /**
-     * Marked entries of the current view, in the order they are listed.
+     * All marked non-deleted entries across the disk, regardless of the active
+     * directory or search filter. Each returned entry carries `_dirPath` with
+     * the directory path where it was marked.
      * @returns {Array<Object>}
      */
     function getMarkedFiles() {
-        return currentFiles.filter(f => markedFiles.has(markKey(f)));
+        if (!diskManager.atr || markedFiles.size === 0) return [];
+        const results = [];
+        function collect(files, dirPath) {
+            for (const f of files) {
+                if (f.isDeleted) continue;
+                if (markedFiles.has(markKey(f, dirPath))) {
+                    results.push(Object.assign({}, f, { _dirPath: dirPath }));
+                }
+                if (f.isDir && f.subFiles && f.subFiles.length > 0) {
+                    collect(f.subFiles, f.fullPath || (dirPath ? `${dirPath}/${f.fullName}` : f.fullName));
+                }
+            }
+        }
+        collect(diskManager.getFiles(), '');
+        return results;
     }
 
     /**
@@ -53,10 +78,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function syncSelectAllCheckbox() {
         if (!chkSelectAll) return;
         const visible = currentFiles.length;
-        const marked = getMarkedFiles().length;
+        const markedVisible = currentFiles.filter(f => markedFiles.has(markKey(f))).length;
         chkSelectAll.disabled = visible === 0;
-        chkSelectAll.checked = visible > 0 && marked === visible;
-        chkSelectAll.indeterminate = marked > 0 && marked < visible;
+        chkSelectAll.checked = visible > 0 && markedVisible === visible;
+        chkSelectAll.indeterminate = markedVisible > 0 && markedVisible < visible;
     }
 
     // DOM Elements
@@ -161,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
             iconHtml = '<svg class="toast-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
         }
 
-        toast.innerHTML = `${iconHtml}<span class="toast-message">${message}</span>`;
+        toast.innerHTML = `${iconHtml}<span class="toast-message">${escapeHtml(message)}</span>`;
         container.appendChild(toast);
         setTimeout(() => {
             toast.style.opacity = '0';
@@ -276,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const diskWarningText = document.getElementById('diskWarningText');
 
         if (stats.isUnrealistic) {
-            const nonStdTitle = T('Niestandardowe parametry dysku');
+            const nonStdTitle = escapeHtml(T('Niestandardowe parametry dysku'));
             metricFreeSectors.innerHTML = `<span style="color: #ef4444; font-weight: bold; font-size: 15px;" title="${nonStdTitle}">?</span>`;
             metricFreeBytes.innerHTML = `<span style="color: #ef4444; font-weight: bold; font-size: 15px;" title="${nonStdTitle}">?</span>`;
             diskProgressFill.style.width = '100%';
@@ -358,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const prefix = level > 0 ? `<span style="opacity:0.4; margin-right:4px; font-family:monospace;">└</span>` : '';
                     li.innerHTML = `
                         ${prefix}<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                        <span>${dir.fullName}</span>
+                        <span>${escapeHtml(dir.fullName)}</span>
                     `;
                     dirTree.appendChild(li);
                     if (dir.subFiles && dir.subFiles.length > 0) {
@@ -435,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="file-icon file-icon-dir" style="margin-right: 6px;">
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
                         </span>
-                        <span>.. [${T('Katalog nadrzędny')}]</span>
+                        <span>.. [${escapeHtml(T('Katalog nadrzędny'))}]</span>
                     </div>
                 </td>
             `;
@@ -481,17 +506,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tr.innerHTML = `
                 <td class="col-check"><input type="checkbox" class="row-check"></td>
-                <td><div class="file-name-cell">${iconHtml}<span>${file.fullName}</span></div></td>
+                <td><div class="file-name-cell">${iconHtml}<span>${escapeHtml(file.fullName)}</span></div></td>
                 <td>${file.sectorCount || 0}</td>
                 <td>${file.sizeBytes !== undefined ? file.sizeBytes.toLocaleString() : '-'}</td>
                 <td>${file.startSector || '-'}</td>
                 <td>${attrBadge}</td>
                 <td>
                     <div class="file-actions">
-                        <button class="btn btn-secondary btn-sm action-preview" ${file.isDir ? 'disabled style="opacity:0.3"' : ''} title="${T('Podgląd / Hex')}">
+                        <button class="btn btn-secondary btn-sm action-preview" ${file.isDir ? 'disabled style="opacity:0.3"' : ''} title="${escapeHtml(T('Podgląd / Hex'))}">
                             <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         </button>
-                        <button class="btn btn-secondary btn-sm action-extract" ${file.isDir ? 'disabled style="opacity:0.3"' : ''} title="${T('Pobierz')}">
+                        <button class="btn btn-secondary btn-sm action-extract" ${file.isDir ? 'disabled style="opacity:0.3"' : ''} title="${escapeHtml(T('Pobierz'))}">
                             <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         </button>
                     </div>
@@ -741,12 +766,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const bytes = shortBoot * 128 + (geom.sectorCount - shortBoot) * geom.sectorSize;
 
         if (info) {
-            const size = T('{0} sekt. x {1} B = {2} KB (plik {3} B)', geom.sectorCount, geom.sectorSize, (bytes / 1024).toFixed(1), (16 + bytes).toLocaleString());
+            const size = escapeHtml(T('{0} sekt. x {1} B = {2} KB (plik {3} B)', geom.sectorCount, geom.sectorSize, (bytes / 1024).toFixed(1), (16 + bytes).toLocaleString()));
             const note = geom.sectorSize > 128 && geom.bootSectorCount !== 3
-                ? '<br>' + T('Uwaga: format ATR nie zapisuje liczby sektorów startowych — przy ponownym wczytaniu obrazu o sektorach 256 B zostaną odczytane 3.')
+                ? '<br>' + escapeHtml(T('Uwaga: format ATR nie zapisuje liczby sektorów startowych — przy ponownym wczytaniu obrazu o sektorach 256 B zostaną odczytane 3.'))
                 : '';
             info.innerHTML = problem
-                ? `<span style="color: var(--danger, #c0392b);">${problem}</span><br>${size}`
+                ? `<span style="color: var(--danger, #c0392b);">${escapeHtml(problem)}</span><br>${size}`
                 : `${size}${note}`;
         }
         if (btnConfirm) btnConfirm.disabled = !!problem;
@@ -890,7 +915,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!diskManager.atr) return;
         if (confirm(T(`Czy na pewno chcesz sformatować dysk? Wszystkie dane zostaną utracone.`))) {
             try {
-                const dosType = diskManager.dosType.includes('LiteDOS') ? 'LiteDOS' : (diskManager.dosType.includes('MyDOS') ? 'MyDOS' : (diskManager.dosType.includes('Sparta') ? 'SpartaDOS' : (diskManager.dosType.includes('CP/M') || diskManager.dosType.includes('CPM') ? (diskManager.dosType.includes('1090') ? 'CPM1090' : 'CPM') : (diskManager.dosType.includes('2.5') ? 'DOS2.5' : 'Atari DOS'))));
+                const curDos = diskManager.dosType || '';
+                const dosType = curDos.includes('LiteDOS') ? 'LiteDOS'
+                    : (curDos.includes('MyDOS') ? 'MyDOS'
+                    : (curDos.includes('Sparta') ? 'SpartaDOS'
+                    : (curDos.includes('CP/M') || curDos.includes('CPM') ? (curDos.includes('1090') ? 'CPM1090' : 'CPM')
+                    : (curDos.includes('DOS II+') || curDos === 'DOS2PLUS' ? 'DOS II+/D'
+                    : (curDos.includes('2.5') ? 'DOS2.5' : 'Atari DOS')))));
                 diskManager.format(dosType);
                 clearMarks();
                 refreshUI();
@@ -905,19 +936,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnManual.addEventListener('click', () => {
             openModal(modalManual);
         });
-    }
-
-    // Helper to find subdirectory object by path
-    function findSubDirObject(files, path) {
-        if (!path) return null;
-        for (const f of files) {
-            if (f.isDir && f.fullPath === path) return f;
-            if (f.subFiles && f.subFiles.length > 0) {
-                const res = findSubDirObject(f.subFiles, path);
-                if (res) return res;
-            }
-        }
-        return null;
     }
 
     async function processBatchImport(filesList) {
@@ -1008,16 +1026,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (failures.length > 0) {
                     importResultSummary.innerHTML = `
                         <div style="font-weight: 700; margin-bottom: 2px; color: #ef4444;">
-                            ${T('Niektóre pliki nie mogły zostać zaimportowane ({0} z {1} zapisanych)', successes.length, total)}
+                            ${escapeHtml(T('Niektóre pliki nie mogły zostać zaimportowane ({0} z {1} zapisanych)', successes.length, total))}
                         </div>
                         <div style="color: var(--text-secondary); margin-top: 4px;">
-                            ${T('Powodem odrzucenia jest zbyt mała wolna powierzchnia dysku, nieprawidłowy format nazwy lub zablokowany katalog.')}
+                            ${escapeHtml(T('Powodem odrzucenia jest zbyt mała wolna powierzchnia dysku, nieprawidłowy format nazwy lub zablokowany katalog.'))}
                         </div>
                     `;
                 } else {
                     importResultSummary.innerHTML = `
                         <div style="font-weight: 700; margin-bottom: 2px; color: var(--color-success);">
-                            ${T('Zaimportowano {0} z {1} plików.', successes.length, total)}
+                            ${escapeHtml(T('Zaimportowano {0} z {1} plików.', successes.length, total))}
                         </div>
                     `;
                 }
@@ -1028,7 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     importSuccessContainer.style.display = 'block';
                     importSuccessList.innerHTML = successes.map(s => `
                         <li>
-                            <span>${s.name}</span>
+                            <span>${escapeHtml(s.name)}</span>
                             <span style="color: var(--text-muted); font-size: 11px;">(${s.size.toLocaleString()} B)</span>
                         </li>
                     `).join('');
@@ -1043,16 +1061,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     importFailureContainer.style.display = 'block';
                     let failureHtml = failures.map(f => `
                         <li>
-                            <span>${f.name}</span>
-                            <span class="file-error-reason">${f.error}</span>
+                            <span>${escapeHtml(f.name)}</span>
+                            <span class="file-error-reason">${escapeHtml(f.error)}</span>
                         </li>
                     `).join('');
 
                     skippedImageFiles.forEach(name => {
                         failureHtml += `
                             <li>
-                                <span>${name}</span>
-                                <span class="file-error-reason">${T('Obraz ATR/XFD - pominięto')}</span>
+                                <span>${escapeHtml(name)}</span>
+                                <span class="file-error-reason">${escapeHtml(T('Obraz ATR/XFD - pominięto'))}</span>
                             </li>
                         `;
                     });
@@ -1105,11 +1123,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const blob = new Blob([bytes], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
+            const downloadName = selectedFileObj.rawFullName || selectedFileObj.fullName;
             a.href = url;
-            a.download = selectedFileObj.fullName;
+            a.download = downloadName;
             a.click();
             URL.revokeObjectURL(url);
-            showToast(T(`Pobrano plik: {0}`, selectedFileObj.fullName), 'success');
+            showToast(T(`Pobrano plik: {0}`, downloadName), 'success');
         } catch (err) {
             showToast(T(`Błąd pobierania: {0}`, err.message), 'error');
         }
@@ -1127,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {Object} report Counters and the list of entries that failed
      */
     function addEntryToZip(zip, file, prefix, report) {
-        const segment = ZipWriter.sanitizeSegment(file.fullName);
+        const segment = ZipWriter.sanitizeSegment(file.rawFullName || file.fullName);
 
         if (file.isDir) {
             // The directory tree carries deleted entries too; the listing hides
@@ -1160,7 +1179,42 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const zip = new ZipWriter();
             const report = { files: 0, failed: [] };
-            for (const file of marked) addEntryToZip(zip, file, '', report);
+
+            // Collect full paths of marked directories so entries inside them
+            // are not packed twice when both parent and child are marked.
+            const markedDirPaths = new Set();
+            for (const f of marked) {
+                if (f.isDir) {
+                    const p = f.fullPath || (f._dirPath ? `${f._dirPath}/${f.fullName}` : f.fullName);
+                    markedDirPaths.add(p);
+                }
+            }
+            const hasAncestorMarked = (dirPath) => {
+                if (!dirPath) return false;
+                const parts = dirPath.split('/');
+                let cur = '';
+                for (const part of parts) {
+                    cur = cur ? `${cur}/${part}` : part;
+                    if (markedDirPaths.has(cur)) return true;
+                }
+                return false;
+            };
+
+            const allUnderActive = activeDirPath && marked.every(f =>
+                f._dirPath === activeDirPath || (f._dirPath && f._dirPath.startsWith(activeDirPath + '/'))
+            );
+
+            for (const file of marked) {
+                if (hasAncestorMarked(file._dirPath)) continue;
+                let relDir = file._dirPath || '';
+                if (allUnderActive) {
+                    relDir = relDir === activeDirPath ? '' : relDir.substring(activeDirPath.length + 1);
+                }
+                const prefix = relDir
+                    ? relDir.split('/').map(s => ZipWriter.sanitizeSegment(s)).join('/') + '/'
+                    : '';
+                addEntryToZip(zip, file, prefix, report);
+            }
 
             if (zip.length === 0) {
                 // Empty selection and a selection nothing could be read from
@@ -1333,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!diskManager.atr) return;
 
         // Formatted ATASCII Directory Listing
-        const filesToDisplay = (currentFiles && currentFiles.length > 0) ? currentFiles : diskManager.getFiles();
+        const filesToDisplay = Array.isArray(currentFiles) ? currentFiles : diskManager.getFiles().filter(f => !f.isDeleted);
         let formattedStr = '';
 
         // Top Header
@@ -1396,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnRenameFile.addEventListener('click', () => {
         if (!selectedFileObj) return;
-        renameInput.value = selectedFileObj.fullName;
+        renameInput.value = selectedFileObj.rawFullName || selectedFileObj.fullName;
         openModal(modalRename);
     });
 

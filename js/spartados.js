@@ -200,6 +200,9 @@ class SpartaDOS {
         const firstBitmapSec = this.boot.firstBitmap || 4;
         const secSize = this.boot.sectorSize || 256;
         const bitsPerBmSec = secSize * 8;
+        const volumeSectors = (this.boot.sectorCount > 0)
+            ? Math.min(this.atr.sectorCount, this.boot.sectorCount)
+            : this.atr.sectorCount;
 
         for (let bmIdx = 0; bmIdx < numBitmapSectors; bmIdx++) {
             const bmSecNum = firstBitmapSec + bmIdx;
@@ -211,7 +214,7 @@ class SpartaDOS {
                         const mask = 0x80 >> bit;
                         if ((bmData[bIdx] & mask) !== 0) {
                             const sec = bmIdx * bitsPerBmSec + bIdx * 8 + bit;
-                            if (sec >= 1 && sec <= this.atr.sectorCount) {
+                            if (sec >= 1 && sec <= volumeSectors) {
                                 // Mark sector as used (0)
                                 bmData[bIdx] &= ~mask;
                                 this.atr.writeSector(bmSecNum, bmData);
@@ -239,7 +242,10 @@ class SpartaDOS {
      * @param {number} sec 
      */
     freeSector(sec) {
-        if (sec <= 0 || sec > this.atr.sectorCount) return;
+        const volumeSectors = (this.boot.sectorCount > 0)
+            ? Math.min(this.atr.sectorCount, this.boot.sectorCount)
+            : this.atr.sectorCount;
+        if (sec <= 0 || sec > volumeSectors) return;
 
         const numBitmapSectors = this.boot.bitmapSectors || 1;
         const firstBitmapSec = this.boot.firstBitmap || 4;
@@ -257,14 +263,17 @@ class SpartaDOS {
         const mask = 0x80 >> (relBit % 8);
 
         if (bIdx < bmData.length) {
+            const wasFree = (bmData[bIdx] & mask) !== 0;
             bmData[bIdx] |= mask;
             this.atr.writeSector(bmSecNum, bmData);
 
-            this.boot.freeSectors++;
-            const sec1 = this.atr.readSector(1);
-            sec1[13] = this.boot.freeSectors & 0xFF;
-            sec1[14] = (this.boot.freeSectors >> 8) & 0xFF;
-            this.atr.writeSector(1, sec1);
+            if (!wasFree) {
+                this.boot.freeSectors++;
+                const sec1 = this.atr.readSector(1);
+                sec1[13] = this.boot.freeSectors & 0xFF;
+                sec1[14] = (this.boot.freeSectors >> 8) & 0xFF;
+                this.atr.writeSector(1, sec1);
+            }
         }
     }
 
@@ -575,7 +584,7 @@ class SpartaDOS {
      * @param {string} targetFullName Upper-case formatted full name (e.g. "TEST.TXT" or "DIRNAME")
      * @returns {boolean}
      */
-    fileExistsInDir(dirMapSec, targetFullName) {
+    fileExistsInDir(dirMapSec, targetFullName, ignoreOffset = -1) {
         const targetUpper = targetFullName.toUpperCase();
         const { dataSectors } = this.readSectorMap(dirMapSec);
         if (dataSectors.length === 0) return false;
@@ -587,6 +596,7 @@ class SpartaDOS {
         const maxBytes = (dirLen > 0 && dirLen <= totalDataBytes) ? dirLen : totalDataBytes;
 
         for (let i = 23; i + 23 <= maxBytes; i += 23) {
+            if (i === ignoreOffset) continue;
             const entryBuf = this.readStreamBytes(dataSectors, i, 23);
             const flag = entryBuf[0];
             if (flag === 0x00) break;
@@ -733,11 +743,25 @@ class SpartaDOS {
         if (!fileObj || !fileObj.dirSector || fileObj.dirOffset === undefined) {
             throw new Error(T("Nieprawidłowy obiekt pliku do usunięcia."));
         }
+        if (fileObj.isLocked || fileObj.isProtected) {
+            throw new Error(T("Plik '{0}' jest zablokowany (Tylko do odczytu). Odblokuj go najpierw.", fileObj.fullName));
+        }
 
         const { dataSectors: dirDataSectors } = this.readSectorMap(fileObj.dirSector);
         if (dirDataSectors.length === 0) throw new Error(T("Nie znaleziono sektora katalogu."));
 
         const entryBuf = this.readStreamBytes(dirDataSectors, fileObj.dirOffset, 23);
+        if ((entryBuf[0] & 0x01) !== 0) {
+            throw new Error(T("Plik '{0}' jest zablokowany (Tylko do odczytu). Odblokuj go najpierw.", fileObj.fullName));
+        }
+
+        if (fileObj.isDir || (entryBuf[0] & 0x20) !== 0) {
+            const subMapSec = fileObj.startSector || (entryBuf[1] | (entryBuf[2] << 8));
+            if (subMapSec > 0 && this.getDirectory(subMapSec).some(f => !f.isDeleted)) {
+                throw new Error(T("Katalog '{0}' nie jest pusty.", fileObj.fullName));
+            }
+        }
+
         entryBuf[0] |= 0x10; // Set deleted flag (bit 4: 0x10)
         entryBuf[0] &= ~0x08; // Clear in-use flag
         this.writeStreamBytes(dirDataSectors, fileObj.dirOffset, entryBuf);
@@ -759,8 +783,15 @@ class SpartaDOS {
         if (!fileObj || !fileObj.dirSector || fileObj.dirOffset === undefined) {
             throw new Error(T("Nieprawidłowy obiekt pliku do zmiany nazwy."));
         }
+        if (fileObj.isLocked || fileObj.isProtected) {
+            throw new Error(T("Plik '{0}' jest zablokowany. Odblokuj go najpierw.", fileObj.fullName));
+        }
 
         const sanitized = ATASCII.formatFilename83(newName);
+        if (this.fileExistsInDir(fileObj.dirSector, sanitized.fullName, fileObj.dirOffset)) {
+            throw new Error(T("Plik lub katalog '{0}' już istnieje w tym katalogu.", sanitized.fullName));
+        }
+
         const nameStr = sanitized.name.padEnd(8, ' ');
         const extStr = sanitized.ext.padEnd(3, ' ');
 
@@ -768,6 +799,9 @@ class SpartaDOS {
         if (dirDataSectors.length === 0) throw new Error(T("Nie znaleziono sektora katalogu."));
 
         const entryBuf = this.readStreamBytes(dirDataSectors, fileObj.dirOffset, 23);
+        if ((entryBuf[0] & 0x01) !== 0) {
+            throw new Error(T("Plik '{0}' jest zablokowany. Odblokuj go najpierw.", fileObj.fullName));
+        }
         entryBuf.set(ATASCII.stringToBytes(nameStr), 6);
         entryBuf.set(ATASCII.stringToBytes(extStr), 14);
         this.writeStreamBytes(dirDataSectors, fileObj.dirOffset, entryBuf);
